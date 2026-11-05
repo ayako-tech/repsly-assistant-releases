@@ -18,29 +18,23 @@
       <div class="motifs" id="motifs"></div>
       <div class="art" id="heroArt"></div>
       <span class="eyebrow">Availability</span>
-      <h1 id="title">Pet Sitting</h1>
+      <h1 id="title">Pet Sitting Availability</h1>
       <p id="message"></p>
     </section>
 
-    <div class="chips" id="chips"></div>
     <p class="rate-note" id="rateNote" hidden></p>
-    <p class="chip-hint">Tap a service to show or hide it.</p>
 
     <h2 class="t"><span class="n">01</span>Pick your dates</h2>
     <div class="checker sticker" id="checker"></div>
 
-    <h2 class="t"><span class="n">02</span>See what's open</h2>
-    <div class="tl-card sticker">
-      <div class="tl-scroll" id="scroll"><div class="tl" id="tl"></div></div>
-      <div class="legend">
-        <span><i class="ok"></i>Open</span>
-        <span><i class="few"></i>Last spot</span>
-        <span><i class="full"></i>Booked</span>
-        <span><i class="na"></i>Not offered</span>
-        <span><i class="closed"></i>Day off</span>
-      </div>
+    <h2 class="t"><span class="n">02</span>Calendar</h2>
+    <div class="legend-top">
+      <span><b class="s-open">○</b>Open</span>
+      <span><b class="s-limited">△</b>Limited — tap for details</span>
+      <span><b class="s-booked">×</b>Booked</span>
+      <span><b class="s-off">Off</b>Day off</span>
     </div>
-    <p class="scroll-hint">← Swipe sideways to see later dates. Tap a day to start, tap another to finish.</p>
+    <div class="months" id="months"></div>
 
     <div class="foot"><div class="art" id="footArt"></div><span id="updated"></span></div>
   </div>
@@ -51,23 +45,6 @@
   <script src="seasons.js"></script>
   <script>
   (async function () {
-    const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
-    const ICON = {
-      stay: svg('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-5h6v5"/><path d="M15.5 7.5c.6-1 1.6-1.5 2.5-1.2"/>'),
-      boarding: svg('<rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2"/><circle cx="12" cy="14.5" r="1.6"/><circle cx="9.4" cy="12" r=".8"/><circle cx="14.6" cy="12" r=".8"/>'),
-      visit: svg('<path d="M6 21V4a1 1 0 011-1h10a1 1 0 011 1v17"/><path d="M3 21h18"/><circle cx="14.5" cy="12.5" r=".6" fill="currentColor"/>'),
-    };
-    document.getElementById('footArt').innerHTML = PSART.PAW + PSART.PAW;
-    (function trail() {
-      const el = document.getElementById('trail');
-      let h = '';
-      for (let i = 0; i < 9; i++) {
-        const x = 6 + i * 11 + (i % 2 ? 3 : -3), y = 18 + i * 9;
-        h += `<span style="position:absolute;left:${x}%;top:${y}%;transform:rotate(${35 + (i % 2 ? 18 : -10)}deg)">${PSART.PAW}</span>`;
-      }
-      el.innerHTML = h;
-      el.querySelectorAll('span > svg').forEach((s) => { s.style.width = '30px'; s.style.height = '30px'; });
-    })();
     let data;
     try {
       const res = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
@@ -77,11 +54,13 @@
     }
     const st = data.settings;
     const en = st.en;
-    document.title = en.businessName || 'Availability';
-    document.getElementById('title').textContent = en.businessName || 'Pet Sitting';
+
+    /* ---------- hero & season ---------- */
+    document.title = en.title || 'Availability';
+    document.getElementById('title').textContent = en.title || 'Pet Sitting Availability';
     document.getElementById('message').textContent = en.message || '';
     if (en.rateNote) { const r = document.getElementById('rateNote'); r.textContent = en.rateNote; r.hidden = false; }
-    // seasonal look (?month=12 to preview a month)
+
     const q = new URLSearchParams(location.search).get('month');
     const season = PSSEASON.pick(st.season, new Date(), q);
     const root = document.documentElement.style;
@@ -99,11 +78,21 @@
       ph.hidden = false;
       document.getElementById('heroArt').hidden = true;
     }
+    document.getElementById('footArt').innerHTML = PSART.PAW + PSART.PAW;
+    (function trail() {
+      const el = document.getElementById('trail');
+      let h = '';
+      for (let i = 0; i < 9; i++) {
+        const x = 6 + i * 11 + (i % 2 ? 3 : -3), y = 18 + i * 9;
+        h += `<span style="position:absolute;left:${x}%;top:${y}%;width:30px;height:30px;transform:rotate(${35 + (i % 2 ? 18 : -10)}deg)">${PSART.PAW}</span>`;
+      }
+      el.innerHTML = h;
+    })();
 
     if (st.contactUrl) {
       const a = document.getElementById('contact');
       a.href = st.contactUrl;
-      a.textContent = (en.contactLabel || 'Contact me to book') + '  →';
+      a.textContent = (en.contactLabel || 'Message me') + '  →';
       a.target = '_blank';
       a.rel = 'noopener';
       a.hidden = false;
@@ -114,159 +103,85 @@
         `Updated ${PS.MONTH_EN[u.getMonth()]} ${u.getDate()}, ${PS.pad(u.getHours())}:${PS.pad(u.getMinutes())} · Bookings are confirmed directly with me.`;
     }
 
-    const services = PS.enabledServices(data);
-    const shown = new Set(services);
-    const state = { start: null, end: null };
-
-    // date span: today → end of the last month shown
+    /* ---------- calendar ---------- */
     const today = PS.today();
     const t0 = PS.parse(today);
-    const months = Math.max(1, Number(st.monthsAhead) || 3);
-    const last = PS.ymd(new Date(t0.getFullYear(), t0.getMonth() + months, 0));
-    const days = [];
-    for (let d = today; d <= last; d = PS.addDays(d, 1)) days.push(d);
-    const statusCache = new Map(days.map((d) => [d, PS.dayStatus(data, d)]));
-    const ds = (d) => statusCache.get(d) || PS.dayStatus(data, d);
+    const monthsAhead = Math.max(1, Number(st.monthsAhead) || 3);
+    const state = { start: null, end: null };
+    const noteOf = (x) => x.noteEn || (x.status === 'limited' ? 'Limited availability, please ask' : '');
 
-    /* ---------- chips ---------- */
-    const chips = document.getElementById('chips');
-    chips.innerHTML = services.map((k) => {
-      const s = PS.svcText(data, k, 'en');
-      return `<button type="button" class="chip" data-k="${k}"><span class="ico">${ICON[k]}</span><span><b>${PS.esc(s.label)}</b><span class="d">${PS.esc(s.note)}</span></span></button>`;
-    }).join('');
-    chips.querySelectorAll('.chip').forEach((b) => b.addEventListener('click', () => {
-      const k = b.dataset.k;
-      if (shown.has(k) && shown.size > 1) shown.delete(k); else shown.add(k);
-      chips.querySelectorAll('.chip').forEach((c) => c.classList.toggle('off', !shown.has(c.dataset.k)));
-      draw();
-    }));
-
-    /* ---------- timeline ---------- */
-    function cellFor(m, remaining) {
-      if (m === 'closed') return ['closed', 'OFF'];
-      if (m === 'na') return ['na', '–'];
-      if (m === 'full') return ['full', ''];
-      if (m === 'few') return ['few', st.showCounts ? String(remaining) : ''];
-      return ['ok', ''];
-    }
-    function inRange(d) {
-      if (!state.start) return false;
-      const e = state.end || state.start;
-      return d >= state.start && d <= e;
-    }
-    function drawTimeline() {
-      const tl = document.getElementById('tl');
-      tl.style.setProperty('--days', days.length);
-      let h = '<div class="lab"></div>';
-      days.forEach((d, i) => {
-        const x = PS.parse(d);
-        const label = i === 0 || x.getDate() === 1 ? `<span>${PS.MONTH_EN[x.getMonth()]}</span>` : '';
-        h += `<div class="mon">${label}</div>`;
-      });
-      h += '<div class="lab"></div>';
-      days.forEach((d) => {
-        const w = PS.parse(d).getDay();
-        h += `<div class="dw ${w === 0 || w === 6 ? 'we' : ''}" data-d="${d}">${PS.WEEK_EN[w].slice(0, 2)}</div>`;
-      });
-      h += '<div class="lab">Date</div>';
-      days.forEach((d) => {
-        const cls = ['dn'];
-        if (d === today) cls.push('today');
-        if (d === state.start || d === state.end) cls.push('sel');
-        h += `<div class="${cls.join(' ')}" data-d="${d}">${PS.parse(d).getDate()}</div>`;
-      });
-
-      const row = (label, sub, getter) => {
-        h += `<div class="lab ${sub ? 'sub' : ''}">${PS.esc(label)}</div>`;
-        days.forEach((d) => {
-          const [cls, txt] = getter(ds(d));
-          const extra = (inRange(d) ? ' inrange' : '') + (d === state.start || d === state.end ? ' sel' : '');
-          h += `<div class="c ${cls}${extra}" data-d="${d}">${txt}</div>`;
-        });
-      };
-      for (const k of services) {
-        if (!shown.has(k)) continue;
-        const s = PS.svcText(data, k, 'en');
-        if (k === 'visit') {
-          h += `<div class="lab grp">${PS.esc(s.label)}</div><div class="grpfill" style="grid-column: 2 / -1"></div>`;
-          st.visitSlots.forEach((slot, i) => {
-            row(PS.slotText(slot, 'en').label, true, (x) => {
-              if (x.closed) return cellFor('closed');
-              const v = x.visits[i];
-              return cellFor(PS.mark(v), v.remaining);
-            });
-          });
-        } else {
-          row(s.label, false, (x) => (x.closed ? cellFor('closed') : cellFor(PS.mark(x[k]), x[k].remaining)));
+    function drawMonths() {
+      let h = '';
+      for (let i = 0; i < monthsAhead; i++) {
+        const first = new Date(t0.getFullYear(), t0.getMonth() + i, 1);
+        const n = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+        h += `<section class="month sticker"><h3>${PS.MONTH_EN_FULL[first.getMonth()]} <span>${first.getFullYear()}</span></h3><div class="grid">`;
+        PS.WEEK_EN.forEach((w, j) => { h += `<div class="wd ${j === 0 || j === 6 ? 'we' : ''}">${w.slice(0, 2)}</div>`; });
+        for (let k = 0; k < first.getDay(); k++) h += '<div class="day empty"></div>';
+        for (let d = 1; d <= n; d++) {
+          const date = PS.ymd(new Date(first.getFullYear(), first.getMonth(), d));
+          const x = PS.dayInfo(data, date);
+          const cls = ['day', 'st-' + x.status];
+          if (x.past) cls.push('past');
+          if (date === today) cls.push('today');
+          if (state.start && date >= state.start && date <= (state.end || state.start)) cls.push('inrange');
+          if (date === state.start || date === state.end) cls.push('sel');
+          const sym = x.past ? '' : `<b>${PS.SYMBOL[x.status]}</b>`;
+          const tip = !x.past && x.status === 'limited' ? ` title="${PS.esc(noteOf(x))}"` : '';
+          h += `<button type="button" class="${cls.join(' ')}" data-d="${date}" ${x.past ? 'disabled' : ''}${tip}><span class="num">${d}</span>${sym}</button>`;
         }
+        h += '</div></section>';
       }
-      tl.innerHTML = h;
-      tl.querySelectorAll('[data-d]').forEach((el) => el.addEventListener('click', () => pick(el.dataset.d)));
+      const el = document.getElementById('months');
+      el.innerHTML = h;
+      el.querySelectorAll('button[data-d]').forEach((b) => b.addEventListener('click', () => pick(b.dataset.d)));
     }
 
-    /* ---------- range checker ---------- */
     function pick(d) {
       if (!state.start || state.end) { state.start = d; state.end = null; }
       else if (d < state.start) { state.start = d; }
       else { state.end = d; }
       draw();
+      if (window.innerWidth < 700) document.getElementById('checker').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-    function list(ds_) {
-      const shownDates = ds_.slice(0, 4).map((d) => PS.fmtDateEn(d).replace(/^\w+, /, ''));
-      return shownDates.join(', ') + (ds_.length > 4 ? ` +${ds_.length - 4} more` : '');
-    }
+
     function drawChecker() {
       const el = document.getElementById('checker');
       if (!state.start) {
-        el.innerHTML = '<p class="prompt"><b>Tap your first day</b> on the timeline below, then your last day — we\'ll check everything in between.</p>';
+        el.innerHTML = '<p class="prompt"><b>Tap your first day</b> on the calendar below, then your last day. You\'ll see at a glance whether I\'m free.</p>';
         return;
       }
       const a = state.start, b = state.end || state.start;
-      const nights = [];
-      if (b > a) for (let d = a; d < b; d = PS.addDays(d, 1)) nights.push(d); else nights.push(a);
-      const visitDays = [];
-      for (let d = a; d <= b; d = PS.addDays(d, 1)) visitDays.push(d);
-      const nCount = b > a ? nights.length : 1;
-      let html = `<div class="range">${PS.fmtDateEn(a)}${b > a ? ' → ' + PS.fmtDateEn(b) : ''}<small>${b > a ? `${nCount} night${nCount > 1 ? 's' : ''} · ${visitDays.length} days` : 'one day'}${state.end ? '' : ' · tap a last day'}</small></div>`;
-      html += '<div class="results">';
-      for (const k of services) {
-        if (!shown.has(k)) continue;
-        const s = PS.svcText(data, k, 'en');
-        if (k === 'visit') {
-          const perSlot = st.visitSlots.map((slot, i) => {
-            const bad = visitDays.filter((d) => { const x = ds(d); return x.closed || x.visits[i].remaining <= 0; });
-            return { label: PS.slotText(slot, 'en').label, bad };
-          });
-          const allOk = perSlot.every((p) => !p.bad.length);
-          const allNo = perSlot.every((p) => p.bad.length === visitDays.length);
-          const cls = allOk ? 'ok' : allNo ? 'no' : 'partial';
-          html += `<div class="res ${cls}"><div class="h"><span><span class="ico">${ICON[k]}</span>${PS.esc(s.label)}</span><span>${allOk ? 'Open' : allNo ? 'Unavailable' : 'Partly open'}</span></div>`;
-          if (allOk) html += '<div class="s">Every visit time is open.</div>';
-          else if (allNo) html += '<div class="s">Not available for these dates.</div>';
-          else html += '<ul>' + perSlot.map((p) => `<li><b>${PS.esc(p.label)}</b>: ${!p.bad.length ? 'open every day' : p.bad.length === visitDays.length ? 'not available' : 'not on ' + list(p.bad)}</li>`).join('') + '</ul>';
-          html += '</div>';
-        } else {
-          const bad = nights.filter((d) => { const x = ds(d); return x.closed || x[k].remaining <= 0; });
-          const cls = !bad.length ? 'ok' : bad.length === nights.length ? 'no' : 'partial';
-          const msg = !bad.length
-            ? (b > a ? `Open for all ${nCount} night${nCount > 1 ? 's' : ''}.` : 'Open that night.')
-            : bad.length === nights.length ? 'Not available for these dates.'
-            : `Booked the night${bad.length > 1 ? 's' : ''} of ${list(bad)}.`;
-          html += `<div class="res ${cls}"><div class="h"><span><span class="ico">${ICON[k]}</span>${PS.esc(s.label)}</span><span>${cls === 'ok' ? 'Open' : cls === 'no' ? 'Unavailable' : 'Partly open'}</span></div><div class="s">${msg}</div></div>`;
+      const days = [];
+      for (let d = a; d <= b; d = PS.addDays(d, 1)) days.push(PS.dayInfo(data, d));
+      const counts = { open: 0, limited: 0, booked: 0, off: 0 };
+      days.forEach((x) => counts[x.status]++);
+      let cls, head;
+      if (counts.open === days.length) { cls = 'ok'; head = days.length > 1 ? 'I\'m open for all of these dates.' : 'I\'m open that day.'; }
+      else if (counts.booked + counts.off === days.length) { cls = 'no'; head = days.length > 1 ? 'Sorry, I\'m not available for these dates.' : 'Sorry, I\'m not available that day.'; }
+      else { cls = 'partial'; head = days.length > 1 ? 'Some of these dates have limits:' : 'That day has limits:'; }
+      let html = `<div class="range">${PS.fmtDateEn(a)}${b > a ? ' → ' + PS.fmtDateEn(b) : ''}<small>${days.length} day${days.length > 1 ? 's' : ''}${state.end ? '' : ' · tap a last day'}</small></div>`;
+      html += `<div class="res ${cls}"><div class="s">${head}</div>`;
+      if (cls === 'partial' || (cls === 'no' && days.length > 1)) {
+        // group consecutive days with the same status & note
+        const groups = [];
+        for (const x of days) {
+          const key = x.status + '|' + noteOf(x);
+          const g = groups[groups.length - 1];
+          if (g && g.key === key) g.end = x.date; else groups.push({ key, start: x.date, end: x.date, x });
         }
+        html += '<ul>' + groups.map((g) => {
+          const when = g.start === g.end ? PS.fmtDateEn(g.start) : `${PS.fmtDateEn(g.start)} – ${PS.fmtDateEn(g.end)}`;
+          const what = g.x.status === 'limited' ? noteOf(g.x) : PS.STATUS_EN[g.x.status];
+          return `<li><span class="sym s-${g.x.status}">${PS.SYMBOL[g.x.status]}</span><b>${when}</b> ${PS.esc(what)}</li>`;
+        }).join('') + '</ul>';
       }
       html += '</div><button type="button" class="btn-clear" id="clear">Clear dates</button>';
       el.innerHTML = html;
       document.getElementById('clear').addEventListener('click', () => { state.start = state.end = null; draw(); });
     }
 
-    function draw() {
-      const sc = document.getElementById('scroll');
-      const x = sc.scrollLeft;
-      drawTimeline();
-      sc.scrollLeft = x;
-      drawChecker();
-    }
+    function draw() { drawMonths(); drawChecker(); }
     draw();
   })();
   </script>

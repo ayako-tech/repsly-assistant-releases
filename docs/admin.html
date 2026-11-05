@@ -7,7 +7,7 @@
   <title>空き状況 管理</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    .wrap { max-width: 900px; }
+    .wrap { max-width: 860px; }
     h1 { font-size: 1.25rem; margin: 0 0 4px; }
     h2.sec { font-size: 1.05rem; margin: 0 0 10px; }
     label { display: block; font-size: .85rem; color: var(--muted); margin: 8px 0 3px; }
@@ -20,6 +20,7 @@
     .btn { border: 1px solid var(--line); background: #fff; padding: 8px 14px; border-radius: 10px; font: inherit; cursor: pointer; color: var(--text); }
     .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
     .btn.danger { color: #b3413a; }
+    .btn.small { padding: 4px 10px; font-size: .85rem; }
     .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
     .savebar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 10px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
     .savebar .status { font-size: .85rem; color: var(--muted); }
@@ -27,30 +28,48 @@
     .list { list-style: none; margin: 0; padding: 0; }
     .list li { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--line); font-size: .9rem; }
     .list li:first-child { border-top: none; }
+    .list li > div { flex: 1; min-width: 0; }
     .list li .btn { flex-shrink: 0; white-space: nowrap; }
-    .list li.editing { background: var(--accent-soft); }
-    .tag { display: inline-block; font-size: .75rem; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-right: 6px; font-weight: 700; }
+    .list input { margin-top: 4px; padding: 5px 8px; font-size: .85rem; }
     .warn { font-size: .8rem; color: #b3413a; }
     details summary { cursor: pointer; font-weight: 700; }
-    .slot-row { display: grid; grid-template-columns: 1fr 1.5fr 80px 36px; gap: 6px; margin-bottom: 6px; }
     .muted { color: var(--muted); font-size: .85rem; }
     .voice { border-color: var(--accent); }
-    .mic { font-size: 1rem; }
     .mic.on { background: #b3413a; border-color: #b3413a; color: #fff; }
     .actions { list-style: none; padding: 0; margin: 10px 0 0; }
     .actions li { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-top: 1px solid var(--line); font-size: .92rem; }
     .actions li.err { color: #b3413a; }
     .examples { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
     .examples button { border: 1px dashed var(--line); background: #fff; border-radius: 999px; padding: 3px 10px; font: inherit; font-size: .8rem; color: var(--muted); cursor: pointer; }
+    .mk { display: inline-block; min-width: 28px; font-weight: 700; }
+    .mk.open { color: #5f7f4c; } .mk.limited { color: #b48a2c; } .mk.booked { color: #a9a49a; } .mk.off { color: #6b6964; font-size: .8rem; }
+    /* calendar */
+    .cal-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .cal-nav h3 { margin: 0; font-size: 1.05rem; }
+    .cal-nav button { width: 38px; height: 34px; border: 1px solid var(--line); border-radius: 8px; background: #fff; cursor: pointer; font-size: 1rem; }
+    .cg { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+    .cg .wd { text-align: center; font-size: .75rem; color: var(--muted); }
+    .cg .wd.sun { color: #c0584a; } .cg .wd.sat { color: #4a72b0; }
+    .cg button { min-height: 56px; border: 0; border-radius: 6px; font: inherit; cursor: pointer; padding: 3px 1px; display: flex; flex-direction: column; align-items: center; color: var(--text); background: #eef2e8; }
+    .cg button .n { font-size: .75rem; color: var(--muted); }
+    .cg button b { font-size: 1.1rem; line-height: 1.2; }
+    .cg button small { font-size: .6rem; line-height: 1.1; color: #8a6d2c; overflow: hidden; max-height: 2.2em; padding: 0 2px; }
+    .cg .st-open b { color: #5f7f4c; }
+    .cg .st-limited { background: #f6edd6; } .cg .st-limited b { color: #b48a2c; }
+    .cg .st-booked { background: repeating-linear-gradient(135deg, #f6f4f0 0 4px, #ebe7e0 4px 8px); } .cg .st-booked b { color: #a9a49a; }
+    .cg .st-off { background: #e3e0da; } .cg .st-off b { color: #6b6964; font-size: .75rem; margin-top: 3px; }
+    .cg .past { background: transparent; cursor: default; } .cg .past .n { color: #c6c2ba; }
+    .cg .sel { box-shadow: inset 0 0 0 2px var(--accent); }
+    .cg .empty { background: transparent; cursor: default; }
   </style>
 </head>
 <body>
 <div class="wrap">
   <h1>🐾 空き状況 管理ページ</h1>
-  <p class="muted">予定を入れて「公開する」を押すと、お客さん用ページ（<a href="./" target="_blank">こちら・英語</a>）に反映されます（反映まで1〜2分）。話した予定や制限は、お客さん用ページでは自動で英語表示になります。</p>
+  <p class="muted">何も入れていない日は「○ 空き」です。変えたい日だけ入れて「公開する」を押すと、お客さん用ページ（<a href="./" target="_blank">英語・こちら</a>）に1〜2分で反映されます。</p>
 
   <div class="savebar">
-    <button class="btn primary" id="publish">公開する（GitHubに保存）</button>
+    <button class="btn primary" id="publish">公開する</button>
     <button class="btn" id="download">データをダウンロード</button>
     <label class="btn" style="margin:0;color:var(--text)">データを読み込む<input type="file" id="upload" accept=".json,application/json" hidden></label>
     <span class="status" id="status"></span>
@@ -58,8 +77,8 @@
 
   <!-- 話して設定 -->
   <div class="card voice">
-    <h2 class="sec">🎤 話して設定する</h2>
-    <p class="muted">話すか文字で入れて「読み取る」を押してください。内容を確認してから反映します。</p>
+    <h2 class="sec">🎤 話して入れる</h2>
+    <p class="muted">話すか文字で入れて「読み取る」→ 確認して「これで反映」。</p>
     <div class="examples" id="vExamples"></div>
     <textarea id="vText" placeholder="例：20日から25日はドロップオフしか受けられない"></textarea>
     <div class="btns">
@@ -67,121 +86,79 @@
       <button class="btn primary" id="vParse" type="button">読み取る</button>
       <button class="btn" id="vClear" type="button">クリア</button>
     </div>
-    <p class="muted" id="vMicNote" hidden>このブラウザは音声入力ボタンに対応していません。キーボードのマイクボタンで話して入力できます。</p>
+    <p class="muted" id="vMicNote" hidden>このブラウザは音声ボタンに対応していません。キーボードのマイクで話して入力できます。</p>
     <div id="vPreview"></div>
   </div>
 
-  <!-- 予定 -->
+  <!-- カレンダー -->
   <div class="card">
-    <h2 class="sec">予定・予約を入れる</h2>
-    <p class="muted">カレンダーの日付をタップすると開始日に入ります。</p>
-    <div class="row">
-      <div>
-        <label>種類</label>
-        <select id="bType">
-          <option value="stay">お泊まりシッター</option>
-          <option value="boarding">お預かり</option>
-          <option value="visit">訪問シッター</option>
-        </select>
-      </div>
-      <div><label>開始日</label><input type="date" id="bStart"></div>
-      <div><label id="bEndLabel">終了日</label><input type="date" id="bEnd"></div>
-      <div><label id="bCountLabel">使う枠の数</label><input type="number" id="bCount" min="1" value="1"></div>
-    </div>
-    <div id="bSlotsWrap">
-      <label>訪問する時間帯</label>
-      <div id="bSlots"></div>
-    </div>
-    <label>メモ <span class="warn">※公開データに含まれます。お客さんの名前や住所は書かないでください</span></label>
-    <input type="text" id="bMemo" placeholder="例：猫2匹 / 犬1頭">
-    <p class="muted" id="bHelp"></p>
-    <div class="btns">
-      <button class="btn primary" id="bSave">追加</button>
-      <button class="btn" id="bCancel" hidden>編集をやめる</button>
-      <button class="btn danger" id="bDelete" hidden>この予定を削除</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="month-nav">
+    <div class="cal-nav">
       <button type="button" id="prev">‹</button>
-      <h2 id="monthLabel"></h2>
+      <h3 id="monthLabel"></h3>
       <button type="button" id="next">›</button>
     </div>
-    <div class="tabs" id="tabs"></div>
     <div id="calendar"></div>
-    <div id="detail" style="margin-top:12px"></div>
+    <p class="muted" style="margin-top:8px"><b class="mk open">○</b>空き　<b class="mk limited">△</b>一部OK　<b class="mk booked">×</b>埋まり　<b class="mk off">Off</b>お休み　｜ 日付をタップすると下の欄に入ります</p>
   </div>
 
+  <!-- 手で入れる -->
   <div class="card">
-    <h2 class="sec">予定一覧</h2>
-    <label class="check"><input type="checkbox" id="showPast"> 終わった予定も表示</label>
-    <ul class="list" id="bookingList"></ul>
-  </div>
-
-  <!-- 休み -->
-  <div class="card">
-    <h2 class="sec">受付制限（この期間は○○だけ など）</h2>
-    <ul class="list" id="rulesList"></ul>
-  </div>
-
-  <div class="card">
-    <h2 class="sec">お休み</h2>
+    <h2 class="sec">手で入れる</h2>
     <div class="row">
-      <div><label>開始日</label><input type="date" id="cStart"></div>
-      <div><label>終了日（1日だけなら空欄）</label><input type="date" id="cEnd"></div>
-      <div><label>表示する理由</label><input type="text" id="cNote" placeholder="お休み"></div>
+      <div><label>開始日</label><input type="date" id="mStart"></div>
+      <div><label>終了日（1日だけなら空欄）</label><input type="date" id="mEnd"></div>
+      <div><label>状態</label>
+        <select id="mStatus">
+          <option value="limited">△ 一部OK</option>
+          <option value="booked">× 埋まり</option>
+          <option value="off">Off お休み</option>
+          <option value="open">○ 空きに戻す</option>
+        </select>
+      </div>
     </div>
-    <div class="btns"><button class="btn primary" id="cAdd">お休みを追加</button></div>
-    <ul class="list" id="closedList" style="margin-top:10px"></ul>
-    <label style="margin-top:14px">定休日（毎週）</label>
-    <div id="holidays"></div>
+    <div id="mNoteWrap">
+      <label>ひとことメモ（△のとき。例：ドロップオフのみ、午前のみ、要相談）<span class="warn"> ※お客さんに見えます</span></label>
+      <input type="text" id="mNote">
+    </div>
+    <div class="btns"><button class="btn primary" id="mApply" type="button">反映</button></div>
+  </div>
+
+  <div class="card">
+    <h2 class="sec">入れている予定</h2>
+    <p class="muted">△のメモの英語はお客さんに表示される文です。直接直せます。</p>
+    <ul class="list" id="entryList"></ul>
   </div>
 
   <!-- 設定 -->
   <div class="card">
     <details>
-      <summary>基本設定（屋号・枠数・時間帯など）</summary>
-      <label>ページのタイトル（屋号）</label><input type="text" id="sName">
+      <summary>ページの文言・見た目</summary>
       <label>お客さんへのメッセージ</label><textarea id="sMessage"></textarea>
       <label>料金についてのひとこと（空欄なら表示しません）</label><input type="text" id="sRateNote">
       <div class="row">
-        <div><label>問い合わせボタンの文字</label><input type="text" id="sContactLabel" placeholder="LINEで問い合わせ"></div>
-        <div><label>問い合わせ先URL（LINE・メール・フォームなど）</label><input type="url" id="sContactUrl" placeholder="https://lin.ee/... または mailto:..."></div>
+        <div><label>問い合わせボタンの行き先（LINE・メール・Messengerなど。空欄ならボタンなし）</label><input type="url" id="sContactUrl" placeholder="https://m.me/... または mailto:..."></div>
+        <div><label>問い合わせボタンの文字</label><input type="text" id="sContactLabel" placeholder="メッセージを送る"></div>
       </div>
-      <label>トップの背景写真（任意・URL）<span class="muted"> 自分のペットの写真などを使えます。空欄なら猫と犬の線画になります</span></label>
-      <input type="url" id="sHeroImage" placeholder="https://... または photo.jpg（docsフォルダに置いた画像）">
-      <label>季節の飾り（お客さん用ページのトップ）</label>
-      <div class="row">
-        <div><select id="sSeason">
-          <option value="auto">自動（月ごとに変わる）</option>
-          <option value="off">飾りなし</option>
-          <option value="1">いつも1月（雪）</option><option value="2">いつも2月（バレンタイン）</option><option value="3">いつも3月（クローバー）</option>
-          <option value="4">いつも4月（春の雨）</option><option value="5">いつも5月（花）</option><option value="6">いつも6月（夏）</option>
-          <option value="7">いつも7月（独立記念日）</option><option value="8">いつも8月（夏の海）</option><option value="9">いつも9月（初秋）</option>
-          <option value="10">いつも10月（ハロウィン）</option><option value="11">いつも11月（感謝祭）</option><option value="12">いつも12月（クリスマス）</option>
-        </select></div>
-        <div><a class="btn" id="seasonPreview" href="./" target="_blank" style="display:inline-block;text-decoration:none">プレビュー</a></div>
-      </div>
-      <p class="muted">1月 雪／2月 バレンタイン／3月 クローバー／4月 春の雨とチューリップ／5月 花／6月 夏／7月 独立記念日／8月 夏の海／9月 初秋／10月 ハロウィン／11月 感謝祭／12月 クリスマス</p>
       <div class="row">
         <div><label>何ヶ月先まで見せるか</label><input type="number" id="sMonths" min="1" max="12"></div>
+        <div><label>季節の飾り</label>
+          <select id="sSeason">
+            <option value="auto">自動（月ごとに変わる）</option>
+            <option value="off">飾りなし</option>
+            <option value="1">いつも1月（雪）</option><option value="2">いつも2月（バレンタイン）</option><option value="3">いつも3月（クローバー）</option>
+            <option value="4">いつも4月（春の雨）</option><option value="5">いつも5月（花）</option><option value="6">いつも6月（夏）</option>
+            <option value="7">いつも7月（独立記念日）</option><option value="8">いつも8月（夏の海）</option><option value="9">いつも9月（初秋）</option>
+            <option value="10">いつも10月（ハロウィン）</option><option value="11">いつも11月（感謝祭）</option><option value="12">いつも12月（クリスマス）</option>
+          </select>
+        </div>
       </div>
-      <div style="margin-top:10px">
-        <label class="check"><input type="checkbox" id="sShowCounts"> 残りの枠数をお客さんに見せる</label><br>
-        <label class="check"><input type="checkbox" id="sExclusive"> お泊まりとお預かりは同じ夜に受けない（どちらかが入ったら、もう一方は×）</label>
-      </div>
-
-      <h3 style="font-size:.95rem;margin:16px 0 4px">サービス</h3>
-      <div id="svcSettings"></div>
-
-      <h3 style="font-size:.95rem;margin:16px 0 4px">訪問の時間帯</h3>
-      <p class="muted">名前・時間・その時間帯に回れる件数</p>
-      <div id="slotSettings"></div>
-      <button class="btn" id="addSlot">時間帯を追加</button>
+      <label>トップの背景写真（任意・URL）<span class="muted"> 空欄なら猫と犬の線画</span></label>
+      <input type="url" id="sHeroImage" placeholder="https://... または photo.jpg（docsフォルダに置いた画像）">
+      <label>定休日（毎週）</label>
+      <div id="holidays"></div>
 
       <h3 style="font-size:.95rem;margin:20px 0 4px">お客さん用ページの英語</h3>
-      <p class="muted">お客さん用ページは英語で表示されます。下の「自動翻訳の設定」でClaudeのAPIキーを入れておくと、上の日本語を変えたときに自動で英語にします。英語を直接書き換えることもできます。</p>
+      <p class="muted">「自動翻訳の設定」でAPIキーを入れておくと、上の日本語を変えたときに自動で英語になります。直接書き換えもできます。</p>
       <div id="enSettings"></div>
       <div class="btns"><button class="btn" id="translateAll" type="button">日本語からすべて英語に翻訳し直す</button></div>
     </details>
@@ -190,7 +167,7 @@
   <div class="card">
     <details>
       <summary>自動翻訳の設定（Claude APIキー）</summary>
-      <p class="muted">console.anthropic.com で作ったAPIキーを入れてください。キーはこの端末のブラウザの中だけに保存され、公開データには入りません。1回の翻訳は1円未満です。</p>
+      <p class="muted">console.anthropic.com で作ったAPIキーを入れてください。キーはこの端末のブラウザの中だけに保存され、公開データには入りません。</p>
       <label>APIキー</label><input type="password" id="aiKey" autocomplete="off" placeholder="sk-ant-...">
       <div class="btns">
         <button class="btn primary" id="aiSave" type="button">保存</button>
@@ -204,7 +181,7 @@
   <div class="card">
     <details>
       <summary>GitHub保存の設定（最初に1回だけ）</summary>
-      <p class="muted">「公開する」ボタンでGitHubに直接保存するための設定です。この情報はこの端末のブラウザの中だけに保存されます。</p>
+      <p class="muted">「公開する」ボタンでGitHubに直接保存するための設定です。この端末のブラウザの中だけに保存されます。</p>
       <div class="row">
         <div><label>オーナー（ユーザー名）</label><input type="text" id="ghOwner"></div>
         <div><label>リポジトリ名</label><input type="text" id="ghRepo"></div>
@@ -229,23 +206,21 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   const LS_GH = 'ps_github_config';
-  const LS_DRAFT = 'ps_draft';
+  const LS_DRAFT = 'ps_draft2';
+  const LS_AI = 'ps_claude_key';
   let data = PS.normalize(null);
   let dirty = false;
-  let editingId = null;
   const now = new Date();
-  const state = { idx: now.getFullYear() * 12 + now.getMonth(), filter: 'all', selected: null };
+  const state = { idx: now.getFullYear() * 12 + now.getMonth(), selected: null };
 
   const store = {
     get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
     del(k) { try { localStorage.removeItem(k); } catch (e) {} },
   };
-
   function setStatus(msg, isDirty) {
-    const el = $('status');
-    el.textContent = msg;
-    el.classList.toggle('dirty', !!isDirty);
+    $('status').textContent = msg;
+    $('status').classList.toggle('dirty', !!isDirty);
   }
   function markDirty() {
     dirty = true;
@@ -253,381 +228,15 @@
     setStatus('● 未公開の変更があります', true);
     renderAll();
   }
-  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-
-  /* ---------- GitHub ---------- */
-  function ghConf() { return store.get(LS_GH) || {}; }
-  function ghUrl(c) {
-    return `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${c.path.split('/').map(encodeURIComponent).join('/')}`;
-  }
-  function b64encode(str) {
-    const bytes = new TextEncoder().encode(str);
-    let bin = '';
-    bytes.forEach((b) => (bin += String.fromCharCode(b)));
-    return btoa(bin);
-  }
-  function b64decode(b64) {
-    const bin = atob(b64.replace(/\s/g, ''));
-    return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
-  }
-  function ghReady(c) { return c.owner && c.repo && c.path && c.token; }
-  async function ghGet(c) {
-    const res = await fetch(`${ghUrl(c)}?ref=${encodeURIComponent(c.branch || 'main')}&t=${Date.now()}`, {
-      headers: { Authorization: `Bearer ${c.token}`, Accept: 'application/vnd.github+json' }, cache: 'no-store',
-    });
-    if (res.status === 404) return { sha: null, json: null };
-    if (!res.ok) throw new Error(`読み込み失敗 (${res.status})`);
-    const j = await res.json();
-    return { sha: j.sha, json: JSON.parse(b64decode(j.content)) };
-  }
-  async function ghPut(c, obj) {
-    const cur = await ghGet(c);
-    const body = {
-      message: `空き状況を更新 ${new Date().toLocaleString('ja-JP')}`,
-      content: b64encode(JSON.stringify(obj, null, 2) + '\n'),
-      branch: c.branch || 'main',
-    };
-    if (cur.sha) body.sha = cur.sha;
-    const res = await fetch(ghUrl(c), {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${c.token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`保存失敗 (${res.status}) ${t.slice(0, 120)}`);
-    }
-  }
-
-  $('publish').addEventListener('click', async () => {
-    const c = ghConf();
-    if (!ghReady(c)) {
-      alert('先に下の「GitHub保存の設定」を入力してください。\n（設定しない場合は「データをダウンロード」して data.json を差し替えてください）');
-      return;
-    }
-    $('publish').disabled = true;
-    setStatus('保存中…');
-    try {
-      data.updatedAt = new Date().toISOString();
-      await ghPut(c, data);
-      dirty = false;
-      store.del(LS_DRAFT);
-      setStatus('✓ 公開しました（ページへの反映まで1〜2分）');
-    } catch (e) {
-      setStatus('✕ ' + e.message, true);
-    } finally {
-      $('publish').disabled = false;
-    }
-  });
-
-  $('download').addEventListener('click', () => {
-    data.updatedAt = new Date().toISOString();
-    const blob = new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'data.json';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  });
-  $('upload').addEventListener('change', async (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    try {
-      data = PS.normalize(JSON.parse(await f.text()));
-      markDirty();
-      fillSettings();
-    } catch (err) { alert('読み込めませんでした: ' + err.message); }
-    e.target.value = '';
-  });
-
-  function fillGh() {
-    const c = ghConf();
-    $('ghOwner').value = c.owner || '';
-    $('ghRepo').value = c.repo || '';
-    $('ghBranch').value = c.branch || '';
-    $('ghPath').value = c.path || '';
-    $('ghToken').value = c.token || '';
-  }
-  $('ghSave').addEventListener('click', () => {
-    store.set(LS_GH, {
-      owner: $('ghOwner').value.trim(), repo: $('ghRepo').value.trim(),
-      branch: $('ghBranch').value.trim() || 'main', path: $('ghPath').value.trim() || 'docs/data.json',
-      token: $('ghToken').value.trim(),
-    });
-    fillGh();
-    setStatus('GitHub設定を保存しました');
-  });
-  $('ghClear').addEventListener('click', () => { store.del(LS_GH); fillGh(); setStatus('設定を消しました'); });
-  $('ghLoad').addEventListener('click', async () => {
-    const c = ghConf();
-    if (!ghReady(c)) return alert('先に設定を保存してください');
-    if (dirty && !confirm('未公開の変更は消えます。読み込みますか？')) return;
-    try {
-      const r = await ghGet(c);
-      data = PS.normalize(r.json);
-      dirty = false; store.del(LS_DRAFT);
-      fillSettings(); renderAll();
-      setStatus('GitHubから読み込みました');
-    } catch (e) { setStatus('✕ ' + e.message, true); }
-  });
-
-  /* ---------- 予定フォーム ---------- */
-  function updateFormMode() {
-    const t = $('bType').value;
-    const isVisit = t === 'visit';
-    $('bSlotsWrap').hidden = !isVisit;
-    $('bEndLabel').textContent = isVisit ? '最終日（1日だけなら空欄）' : '終了日（お迎え・チェックアウトの日）';
-    $('bCountLabel').textContent = isVisit ? '件数（同じ時間帯に何件分）' : t === 'boarding' ? '預かる組数（枠の数）' : '使う枠の数';
-    $('bHelp').textContent = isVisit
-      ? '例：11/10〜11/14 朝と夕 → その5日間の朝・夕の枠が1件ずつ埋まります。'
-      : '例：11/10〜11/12 → 10日と11日の夜が埋まります（12日の夜は空きになります）。';
-    $('bSlots').innerHTML = data.settings.visitSlots
-      .map((s) => `<label class="check"><input type="checkbox" value="${PS.esc(s.id)}"> ${PS.esc(s.label)} <span class="muted">${PS.esc(s.time || '')}</span></label>`)
-      .join('');
-  }
-  function setSlotChecks(ids) {
-    $('bSlots').querySelectorAll('input').forEach((i) => (i.checked = ids.includes(i.value)));
-  }
-  $('bType').addEventListener('change', () => {
-    const keep = [...$('bSlots').querySelectorAll('input:checked')].map((i) => i.value);
-    updateFormMode(); setSlotChecks(keep);
-  });
-
-  function resetForm() {
-    editingId = null;
-    $('bSave').textContent = '追加';
-    $('bCancel').hidden = true; $('bDelete').hidden = true;
-    $('bEnd').value = ''; $('bCount').value = 1; $('bMemo').value = '';
-    setSlotChecks([]);
-    renderBookings();
-  }
-  $('bCancel').addEventListener('click', resetForm);
-
-  $('bSave').addEventListener('click', () => {
-    const type = $('bType').value;
-    const start = $('bStart').value;
-    let end = $('bEnd').value;
-    if (!start) return alert('開始日を入れてください');
-    if (type === 'visit') {
-      if (end && end < start) return alert('最終日が開始日より前になっています');
-    } else {
-      if (!end) end = PS.addDays(start, 1);
-      if (end <= start) return alert('終了日は開始日の翌日以降にしてください');
-    }
-    const slots = [...$('bSlots').querySelectorAll('input:checked')].map((i) => i.value);
-    if (type === 'visit' && slots.length === 0) return alert('訪問する時間帯を選んでください');
-    const b = { id: editingId || uid(), type, start, end: end || start, count: Math.max(1, Number($('bCount').value) || 1), memo: $('bMemo').value.trim() };
-    if (type === 'visit') b.slots = slots;
-
-    // 枠オーバーの確認
-    const over = checkOver(b);
-    if (over.length && !confirm(`次の日は枠を超えます：\n${over.join('\n')}\nそれでも登録しますか？`)) return;
-
-    if (editingId) data.bookings = data.bookings.map((x) => (x.id === editingId ? b : x));
-    else data.bookings.push(b);
-    resetForm();
-    markDirty();
-  });
-  $('bDelete').addEventListener('click', () => {
-    if (!editingId || !confirm('この予定を削除しますか？')) return;
-    data.bookings = data.bookings.filter((x) => x.id !== editingId);
-    resetForm();
-    markDirty();
-  });
-
-  function checkOver(b) {
-    const trial = PS.clone(data);
-    trial.bookings = trial.bookings.filter((x) => x.id !== b.id).concat([b]);
-    const out = [];
-    const last = b.type === 'visit' ? b.end : PS.addDays(b.end, -1);
-    for (let d = b.start; d <= last; d = PS.addDays(d, 1)) {
-      const u = PS.usage(trial, d);
-      const sv = trial.settings.services;
-      if (b.type === 'stay' && u.stay > sv.stay.capacity) out.push(`${PS.fmtDate(d)} お泊まり`);
-      if (b.type === 'boarding' && u.boarding > sv.boarding.capacity) out.push(`${PS.fmtDate(d)} お預かり`);
-      if (trial.settings.exclusiveNight && b.type !== 'visit' && u.stay > 0 && u.boarding > 0) out.push(`${PS.fmtDate(d)} お泊まりとお預かりが重複`);
-      if (b.type === 'visit') {
-        for (const s of trial.settings.visitSlots) {
-          if (b.slots.includes(s.id) && (u.visit[s.id] || 0) > s.capacity) out.push(`${PS.fmtDate(d)} 訪問（${s.label}）`);
-        }
-      }
-      if (out.length > 8) break;
-    }
-    return out;
-  }
-
-  function editBooking(id) {
-    const b = data.bookings.find((x) => x.id === id);
-    if (!b) return;
-    editingId = id;
-    $('bType').value = b.type; updateFormMode();
-    $('bStart').value = b.start;
-    $('bEnd').value = b.type === 'visit' && b.end === b.start ? '' : b.end;
-    $('bCount').value = b.count || 1;
-    $('bMemo').value = b.memo || '';
-    setSlotChecks(b.slots || []);
-    $('bSave').textContent = '変更を反映';
-    $('bCancel').hidden = false; $('bDelete').hidden = false;
-    renderBookings();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function bookingText(b) {
-    const sv = data.settings.services;
-    const name = sv[b.type] ? sv[b.type].label : b.type;
-    let range;
-    if (b.type === 'visit') {
-      range = b.end && b.end !== b.start ? `${PS.fmtDate(b.start)}〜${PS.fmtDate(b.end)}` : PS.fmtDate(b.start);
-      const labels = (b.slots || []).map((id) => (data.settings.visitSlots.find((s) => s.id === id) || { label: id }).label);
-      range += ` ［${labels.join('・')}］`;
-    } else {
-      const nights = Math.round((PS.parse(b.end) - PS.parse(b.start)) / 86400000);
-      range = `${PS.fmtDate(b.start)}〜${PS.fmtDate(b.end)}（${nights}泊）`;
-    }
-    const cnt = (b.count || 1) > 1 ? ` ×${b.count}` : '';
-    return `<span class="tag">${PS.esc(name)}</span>${range}${cnt}${b.memo ? ` <span class="muted">${PS.esc(b.memo)}</span>` : ''}`;
-  }
-
-  function renderBookings() {
-    const t = PS.today();
-    const showPast = $('showPast').checked;
-    const list = data.bookings
-      .filter((b) => showPast || (b.end || b.start) >= t)
-      .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
-    $('bookingList').innerHTML = list.length
-      ? list.map((b) => `<li class="${b.id === editingId ? 'editing' : ''}"><div>${bookingText(b)}</div><button class="btn" data-id="${b.id}">編集</button></li>`).join('')
-      : '<li class="muted">予定はまだありません</li>';
-    $('bookingList').querySelectorAll('button[data-id]').forEach((el) => el.addEventListener('click', () => editBooking(el.dataset.id)));
-  }
-  $('showPast').addEventListener('change', renderBookings);
-
-  /* ---------- 休み ---------- */
-  $('cAdd').addEventListener('click', () => {
-    const start = $('cStart').value;
-    const end = $('cEnd').value || start;
-    if (!start) return alert('開始日を入れてください');
-    if (end < start) return alert('終了日が開始日より前です');
-    data.closed.push({ id: uid(), start, end, note: $('cNote').value.trim() || 'お休み' });
-    $('cStart').value = ''; $('cEnd').value = ''; $('cNote').value = '';
-    markDirty();
-  });
-  function renderClosed() {
-    const t = PS.today();
-    const list = data.closed.filter((c) => (c.end || c.start) >= t).sort((a, b) => (a.start < b.start ? -1 : 1));
-    $('closedList').innerHTML = list.length
-      ? list.map((c, i) => `<li><div>${PS.fmtDate(c.start)}${c.end && c.end !== c.start ? '〜' + PS.fmtDate(c.end) : ''} <span class="muted">${PS.esc(c.note)}</span></div><button class="btn danger" data-i="${data.closed.indexOf(c)}">削除</button></li>`).join('')
-      : '<li class="muted">予定されたお休みはありません</li>';
-    $('closedList').querySelectorAll('button[data-i]').forEach((el) =>
-      el.addEventListener('click', () => { data.closed.splice(Number(el.dataset.i), 1); markDirty(); })
-    );
-    $('holidays').innerHTML = PS.WEEK.map((w, i) =>
-      `<label class="check"><input type="checkbox" value="${i}" ${data.settings.regularHolidays.includes(i) ? 'checked' : ''}> ${w}</label>`).join('');
-    $('holidays').querySelectorAll('input').forEach((el) => el.addEventListener('change', () => {
-      data.settings.regularHolidays = [...$('holidays').querySelectorAll('input:checked')].map((x) => Number(x.value));
-      markDirty();
-    }));
-  }
-
-  /* ---------- 受付制限 ---------- */
-  function ruleText(r) {
-    const sv = data.settings.services;
-    const range = r.start === (r.end || r.start) ? PS.fmtDate(r.start) : `${PS.fmtDate(r.start)}〜${PS.fmtDate(r.end)}`;
-    const parts = [];
-    const blocked = (r.block || []).map((k) => (sv[k] ? sv[k].label : k));
-    if (blocked.length) parts.push(`${blocked.join('・')} 受付なし`);
-    if (Array.isArray(r.visitSlots)) {
-      const ls = r.visitSlots.map((id) => (data.settings.visitSlots.find((s) => s.id === id) || { label: id }).label);
-      parts.push(ls.length ? `訪問は ${ls.join('・')} のみ` : '訪問 受付なし');
-    }
-    return `${range}　<span class="muted">${PS.esc(parts.join(' / ') || '制限なし')}</span>`;
-  }
-  function renderRules() {
-    const t = PS.today();
-    const list = data.rules.filter((r) => (r.end || r.start) >= t).sort((a, b) => (a.start < b.start ? -1 : 1));
-    $('rulesList').innerHTML = list.length
-      ? list.map((r) => `<li><div>${ruleText(r)}</div><button class="btn danger" data-i="${data.rules.indexOf(r)}">削除</button></li>`).join('')
-      : '<li class="muted">制限はありません。上の「話して設定する」から入れられます</li>';
-    $('rulesList').querySelectorAll('button[data-i]').forEach((el) =>
-      el.addEventListener('click', () => { data.rules.splice(Number(el.dataset.i), 1); markDirty(); })
-    );
-  }
-
-  /* ---------- 話して設定 ---------- */
-  const EXAMPLES = ['20日から25日はドロップオフしか受けられない', '12/1はお休み', '来週の土日はお泊まりNG',
-    '10日から12日お預かりの予約入った', '15日は朝だけ', '20日から25日の制限は解除'];
-  $('vExamples').innerHTML = EXAMPLES.map((e) => `<button type="button">${PS.esc(e)}</button>`).join('');
-  $('vExamples').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { $('vText').value = b.textContent; parseVoice(); }));
-  let pending = [];
-  function parseVoice() {
-    const text = $('vText').value.trim();
-    if (!text) { $('vPreview').innerHTML = ''; return; }
-    pending = PSNLP.parse(data, text);
-    const ok = pending.filter((a) => a.type !== 'error');
-    let html = '<ul class="actions">' + pending.map((a, i) => a.type === 'error'
-      ? `<li class="err">⚠️ ${PS.esc(a.text)}</li>`
-      : `<li><input type="checkbox" checked data-i="${i}"><span>${PS.esc(a.text)}</span></li>`).join('') + '</ul>';
-    if (ok.length) {
-      html += `<div class="btns"><button class="btn primary" id="vApply" type="button">これで反映</button>`;
-      if (ghReady(ghConf())) html += `<button class="btn primary" id="vApplyPub" type="button">反映してすぐ公開</button>`;
-      html += `</div>`;
-    }
-    $('vPreview').innerHTML = html;
-    if (ok.length) {
-      $('vApply').addEventListener('click', () => applyVoice(false));
-      if ($('vApplyPub')) $('vApplyPub').addEventListener('click', () => applyVoice(true));
-    }
-  }
-  function applyVoice(publish) {
-    const chosen = [...$('vPreview').querySelectorAll('input[data-i]:checked')].map((el) => pending[Number(el.dataset.i)]);
-    if (!chosen.length) return;
-    PSNLP.apply(data, chosen);
-    $('vText').value = '';
-    $('vPreview').innerHTML = `<p class="muted">✓ ${chosen.length}件を反映しました${publish ? '' : '（「公開する」を押すとお客さんのページに出ます）'}</p>`;
-    const first = chosen[0];
-    const d = first.start || (first.rule || first.closed || first.booking || {}).start;
-    if (d) { const x = PS.parse(d); state.idx = x.getFullYear() * 12 + x.getMonth(); state.selected = d; }
-    markDirty();
-    if (publish) $('publish').click();
-  }
-  $('vParse').addEventListener('click', parseVoice);
-  $('vClear').addEventListener('click', () => { $('vText').value = ''; $('vPreview').innerHTML = ''; });
-
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    $('vMic').hidden = true;
-    $('vMicNote').hidden = false;
-  } else {
-    let rec = null;
-    $('vMic').addEventListener('click', () => {
-      if (rec) { rec.stop(); return; }
-      rec = new SR();
-      rec.lang = 'ja-JP';
-      rec.interimResults = false;
-      rec.continuous = false;
-      $('vMic').classList.add('on');
-      $('vMic').textContent = '■ 聞いています…（押すと終了）';
-      rec.onresult = (e) => {
-        const said = [...e.results].map((r) => r[0].transcript).join('');
-        $('vText').value = ($('vText').value ? $('vText').value + '。' : '') + said;
-        parseVoice();
-      };
-      rec.onerror = (e) => { if (e.error !== 'no-speech' && e.error !== 'aborted') alert('音声入力エラー：' + e.error + '\nマイクの使用を許可してください'); };
-      rec.onend = () => { rec = null; $('vMic').classList.remove('on'); $('vMic').textContent = '🎤 話す'; };
-      rec.start();
-    });
-  }
 
   /* ---------- 自動翻訳（Claude API） ---------- */
-  const LS_AI = 'ps_claude_key';
   const aiKey = () => store.get(LS_AI) || '';
   const SYSTEM_PROMPT = [
-    "You translate short Japanese text from a pet sitter's settings into natural, warm, concise English",
-    'for the public availability page their English-speaking clients see.',
+    "You translate short Japanese notes from a Japanese pet sitter into natural, warm, concise English for the public availability page",
+    'that her English-speaking clients (American families on a military base) see.',
     'Input: a JSON array of strings. Output: only a JSON array of the same length with the translations, in the same order, and nothing else.',
-    'Keep names, URLs, numbers, times and emoji as they are. Do not add information.',
-    'Terms: お泊まり / お泊まりシッター = Overnight Sitting (the sitter stays at the client\'s home);',
-    'お預かり = Boarding (the pet stays at the sitter\'s home); 訪問シッター / ドロップイン / ドロップオフ = Drop-in Visits;',
-    '朝 = Morning, 昼 = Midday, 夕 = Evening.',
+    'Keep it short like a calendar note. Keep names, URLs, numbers, times and emoji as they are. Do not add information. Never mention prices.',
+    'Terms: お泊まり = overnight stay at the client\'s home; お預かり = boarding at the sitter\'s home; 訪問 / ドロップオフ / ドロップイン = drop-in visits.',
   ].join(' ');
   async function translate(texts) {
     const key = aiKey();
@@ -659,166 +268,308 @@
     if (!Array.isArray(arr) || arr.length !== texts.length) throw new Error('翻訳結果を読み取れませんでした');
     return arr.map(String);
   }
-  // 日本語の項目 → 英語の項目
-  function enFields() {
-    const s = data.settings;
-    const f = [
-      { name: '屋号', get: () => s.businessName, en: ['en', 'businessName'] },
-      { name: 'メッセージ', get: () => s.message, en: ['en', 'message'], long: true },
-      { name: '料金についてのひとこと', get: () => s.rateNote, en: ['en', 'rateNote'] },
-      { name: '問い合わせボタン', get: () => s.contactLabel || 'お問い合わせ・ご予約', en: ['en', 'contactLabel'] },
-    ];
-    for (const k of ['stay', 'boarding', 'visit']) {
-      f.push({ name: s.services[k].label + '（名前）', get: () => s.services[k].label, en: ['services', k, 'labelEn'] });
-      f.push({ name: s.services[k].label + '（説明）', get: () => s.services[k].note, en: ['services', k, 'noteEn'] });
-    }
-    s.visitSlots.forEach((sl, i) => f.push({ name: '時間帯：' + sl.label, get: () => sl.label, en: ['visitSlots', i, 'labelEn'] }));
-    return f;
+  // 英訳がまだない△のメモをまとめて訳す
+  async function translateMissingNotes() {
+    const todo = data.entries.filter((e) => e.status === 'limited' && e.note && !e.noteEn);
+    if (!todo.length || !aiKey()) return;
+    setStatus('メモを英語に翻訳中…');
+    try {
+      const out = await translate(todo.map((e) => e.note));
+      todo.forEach((e, i) => (e.noteEn = out[i]));
+      markDirty();
+    } catch (e) { setStatus('✕ ' + e.message + '（英語は一覧から手で入れられます）', true); }
   }
-  function getPath(p) { return p.reduce((o, k) => (o == null ? o : o[k]), data.settings); }
-  function setPath(p, v) { const o = p.slice(0, -1).reduce((o, k) => o[k], data.settings); o[p[p.length - 1]] = v; }
-  function renderEnSettings() {
-    const f = enFields();
-    $('enSettings').innerHTML = f.map((x, i) => `<label>${PS.esc(x.name)} <span class="muted">${PS.esc(x.get() || '')}</span></label>
-      ${x.long ? `<textarea data-en="${i}">${PS.esc(getPath(x.en) || '')}</textarea>` : `<input type="text" data-en="${i}" value="${PS.esc(getPath(x.en) || '')}">`}`).join('');
-    $('enSettings').querySelectorAll('[data-en]').forEach((el) => el.addEventListener('change', () => {
-      setPath(f[Number(el.dataset.en)].en, el.value); markDirty();
+
+  /* ---------- 話して入れる ---------- */
+  const EXAMPLES = ['20日から25日はドロップオフしか受けられない', '10日から12日は埋まった', '12/1は休み', '15日は午前だけ', '28日は要相談', '20日から25日は元に戻して'];
+  $('vExamples').innerHTML = EXAMPLES.map((e) => `<button type="button">${PS.esc(e)}</button>`).join('');
+  $('vExamples').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { $('vText').value = b.textContent; parseVoice(); }));
+  let pending = [];
+  function parseVoice() {
+    const text = $('vText').value.trim();
+    if (!text) { $('vPreview').innerHTML = ''; return; }
+    pending = PSNLP.parse(data, text);
+    const ok = pending.filter((a) => a.type !== 'error');
+    let html = '<ul class="actions">' + pending.map((a, i) => a.type === 'error'
+      ? `<li class="err">⚠️ ${PS.esc(a.text)}</li>`
+      : `<li><input type="checkbox" checked data-i="${i}"><span>${PS.esc(a.text)}</span></li>`).join('') + '</ul>';
+    if (ok.some((a) => a.free && !aiKey())) html += '<p class="muted">※英訳は、APIキーを設定するか、下の「入れている予定」で英語を入れると表示されます。それまではお客さんには「Limited availability, please ask」と出ます。</p>';
+    if (ok.length) {
+      html += '<div class="btns"><button class="btn primary" id="vApply" type="button">これで反映</button>';
+      if (ghReady(ghConf())) html += '<button class="btn primary" id="vApplyPub" type="button">反映してすぐ公開</button>';
+      html += '</div>';
+    }
+    $('vPreview').innerHTML = html;
+    if (ok.length) {
+      $('vApply').addEventListener('click', () => applyVoice(false));
+      if ($('vApplyPub')) $('vApplyPub').addEventListener('click', () => applyVoice(true));
+    }
+  }
+  async function applyVoice(publish) {
+    const chosen = [...$('vPreview').querySelectorAll('input[data-i]:checked')].map((el) => pending[Number(el.dataset.i)]);
+    if (!chosen.length) return;
+    PSNLP.apply(data, chosen);
+    $('vText').value = '';
+    $('vPreview').innerHTML = `<p class="muted">✓ ${chosen.length}件を反映しました${publish ? '' : '（「公開する」を押すとお客さんのページに出ます）'}</p>`;
+    const x = PS.parse(chosen[0].start);
+    state.idx = x.getFullYear() * 12 + x.getMonth();
+    markDirty();
+    await translateMissingNotes();
+    if (publish) $('publish').click();
+  }
+  $('vParse').addEventListener('click', parseVoice);
+  $('vClear').addEventListener('click', () => { $('vText').value = ''; $('vPreview').innerHTML = ''; });
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { $('vMic').hidden = true; $('vMicNote').hidden = false; }
+  else {
+    let rec = null;
+    $('vMic').addEventListener('click', () => {
+      if (rec) { rec.stop(); return; }
+      rec = new SR();
+      rec.lang = 'ja-JP';
+      rec.interimResults = false;
+      $('vMic').classList.add('on');
+      $('vMic').textContent = '■ 聞いています…（押すと終了）';
+      rec.onresult = (e) => {
+        const said = [...e.results].map((r) => r[0].transcript).join('');
+        $('vText').value = ($('vText').value ? $('vText').value + '。' : '') + said;
+        parseVoice();
+      };
+      rec.onerror = (e) => { if (e.error !== 'no-speech' && e.error !== 'aborted') alert('音声入力エラー：' + e.error + '\nマイクの使用を許可してください'); };
+      rec.onend = () => { rec = null; $('vMic').classList.remove('on'); $('vMic').textContent = '🎤 話す'; };
+      rec.start();
+    });
+  }
+
+  /* ---------- 手で入れる ---------- */
+  $('mStatus').addEventListener('change', () => { $('mNoteWrap').hidden = $('mStatus').value !== 'limited'; });
+  $('mApply').addEventListener('click', async () => {
+    const start = $('mStart').value;
+    const end = $('mEnd').value || start;
+    if (!start) return alert('開始日を入れてください');
+    if (end < start) return alert('終了日が開始日より前です');
+    const status = $('mStatus').value;
+    const note = status === 'limited' ? $('mNote').value.trim() : '';
+    PSNLP.apply(data, [status === 'open' ? { type: 'clear', start, end } : { type: 'set', start, end, status, note, noteEn: '' }]);
+    $('mEnd').value = ''; $('mNote').value = '';
+    markDirty();
+    await translateMissingNotes();
+  });
+
+  /* ---------- 一覧 ---------- */
+  function renderEntries() {
+    const t = PS.today();
+    const list = data.entries.filter((e) => (e.end || e.start) >= t);
+    $('entryList').innerHTML = list.length
+      ? list.map((e) => {
+          const i = data.entries.indexOf(e);
+          const label = { limited: '一部OK', booked: '埋まり', off: 'お休み' }[e.status];
+          const en = e.status === 'limited'
+            ? `<input type="text" data-en="${i}" value="${PS.esc(e.noteEn || '')}" placeholder="英語（空欄なら Limited availability, please ask）">` : '';
+          return `<li><div><b class="mk ${e.status}">${PS.SYMBOL[e.status]}</b>${PS.fmtRange(e.start, e.end || e.start)}　${label}${e.note ? `　<span class="muted">${PS.esc(e.note)}</span>` : ''}${en}</div>
+            <button class="btn small danger" data-del="${i}">削除</button></li>`;
+        }).join('')
+      : '<li class="muted">まだ何も入れていません（全部「○ 空き」で表示されます）</li>';
+    $('entryList').querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => { data.entries.splice(Number(b.dataset.del), 1); markDirty(); }));
+    $('entryList').querySelectorAll('[data-en]').forEach((el) => el.addEventListener('change', () => { data.entries[Number(el.dataset.en)].noteEn = el.value.trim(); markDirty(); }));
+  }
+
+  /* ---------- カレンダー ---------- */
+  function renderCal() {
+    const y = Math.floor(state.idx / 12), m = state.idx % 12;
+    $('monthLabel').textContent = `${y}年 ${m + 1}月`;
+    const first = new Date(y, m, 1);
+    const n = new Date(y, m + 1, 0).getDate();
+    let h = '<div class="cg">' + PS.WEEK.map((w, i) => `<div class="wd ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</div>`).join('');
+    for (let i = 0; i < first.getDay(); i++) h += '<div class="empty"></div>';
+    for (let d = 1; d <= n; d++) {
+      const date = PS.ymd(new Date(y, m, d));
+      const x = PS.dayInfo(data, date);
+      const cls = ['st-' + x.status];
+      if (x.past) cls.push('past');
+      if (date === state.selected) cls.push('sel');
+      h += `<button type="button" class="${cls.join(' ')}" data-d="${date}" ${x.past ? 'disabled' : ''}><span class="n">${d}</span>${x.past ? '' : `<b>${PS.SYMBOL[x.status]}</b>`}${!x.past && x.note ? `<small>${PS.esc(x.note)}</small>` : ''}</button>`;
+    }
+    $('calendar').innerHTML = h + '</div>';
+    $('calendar').querySelectorAll('[data-d]').forEach((b) => b.addEventListener('click', () => {
+      state.selected = b.dataset.d;
+      $('mStart').value = b.dataset.d;
+      renderCal();
     }));
   }
-  async function autoTranslate(paths) {
+  $('prev').addEventListener('click', () => { state.idx--; renderCal(); });
+  $('next').addEventListener('click', () => { state.idx++; renderCal(); });
+
+  /* ---------- 設定 ---------- */
+  const EN_FIELDS = [
+    { name: 'タイトル', ja: null, key: 'title' },
+    { name: 'メッセージ', ja: 'message', key: 'message', long: true },
+    { name: '料金についてのひとこと', ja: 'rateNote', key: 'rateNote' },
+    { name: '問い合わせボタン', ja: 'contactLabel', key: 'contactLabel' },
+  ];
+  function renderEnSettings() {
+    $('enSettings').innerHTML = EN_FIELDS.map((f) => {
+      const v = PS.esc(data.settings.en[f.key] || '');
+      return `<label>${f.name}${f.ja && data.settings[f.ja] ? ` <span class="muted">${PS.esc(data.settings[f.ja])}</span>` : ''}</label>` +
+        (f.long ? `<textarea data-k="${f.key}">${v}</textarea>` : `<input type="text" data-k="${f.key}" value="${v}">`);
+    }).join('');
+    $('enSettings').querySelectorAll('[data-k]').forEach((el) => el.addEventListener('change', () => { data.settings.en[el.dataset.k] = el.value; markDirty(); }));
+  }
+  async function autoTranslate(keys) {
     if (!aiKey()) return;
-    const f = enFields().filter((x) => paths.some((p) => JSON.stringify(p) === JSON.stringify(x.en)) && x.get());
-    if (!f.length) return;
+    const fs = EN_FIELDS.filter((f) => f.ja && keys.includes(f.key) && data.settings[f.ja]);
+    if (!fs.length) return;
     setStatus('英語に翻訳中…');
     try {
-      const out = await translate(f.map((x) => x.get()));
-      f.forEach((x, i) => setPath(x.en, out[i]));
+      const out = await translate(fs.map((f) => data.settings[f.ja]));
+      fs.forEach((f, i) => (data.settings.en[f.key] = out[i]));
       renderEnSettings();
       markDirty();
     } catch (e) { setStatus('✕ ' + e.message, true); }
   }
+  function fillSettings() {
+    const s = data.settings;
+    $('sMessage').value = s.message || '';
+    $('sRateNote').value = s.rateNote || '';
+    $('sContactUrl').value = s.contactUrl || '';
+    $('sContactLabel').value = s.contactLabel || '';
+    $('sMonths').value = s.monthsAhead || 3;
+    $('sSeason').value = s.season || 'auto';
+    $('sHeroImage').value = s.heroImage || '';
+    $('holidays').innerHTML = PS.WEEK.map((w, i) =>
+      `<label class="check"><input type="checkbox" value="${i}" ${s.regularHolidays.includes(i) ? 'checked' : ''}> ${w}</label>`).join('');
+    $('holidays').querySelectorAll('input').forEach((el) => el.addEventListener('change', () => {
+      data.settings.regularHolidays = [...$('holidays').querySelectorAll('input:checked')].map((x) => Number(x.value));
+      markDirty();
+    }));
+    renderEnSettings();
+  }
+  const bind = (id, key, fn, en) => $(id).addEventListener('change', () => {
+    data.settings[key] = fn($(id));
+    markDirty();
+    if (en) {
+      if (!data.settings[key]) { data.settings.en[en] = ''; renderEnSettings(); }
+      else autoTranslate([en]);
+    }
+  });
+  bind('sMessage', 'message', (e) => e.value, 'message');
+  bind('sRateNote', 'rateNote', (e) => e.value.trim(), 'rateNote');
+  bind('sContactLabel', 'contactLabel', (e) => e.value.trim(), 'contactLabel');
+  bind('sContactUrl', 'contactUrl', (e) => e.value.trim());
+  bind('sMonths', 'monthsAhead', (e) => Math.min(12, Math.max(1, Number(e.value) || 3)));
+  bind('sSeason', 'season', (e) => e.value);
+  bind('sHeroImage', 'heroImage', (e) => e.value.trim());
   $('translateAll').addEventListener('click', async () => {
     if (!aiKey()) return alert('先に「自動翻訳の設定」でAPIキーを保存してください');
-    await autoTranslate(enFields().map((x) => x.en));
+    await autoTranslate(EN_FIELDS.map((f) => f.key));
+    data.entries.forEach((e) => { if (e.status === 'limited' && e.note) e.noteEn = ''; });
+    await translateMissingNotes();
   });
   $('aiKey').value = aiKey();
   $('aiSave').addEventListener('click', () => { store.set(LS_AI, $('aiKey').value.trim()); $('aiStatus').textContent = '保存しました'; });
   $('aiClear').addEventListener('click', () => { store.del(LS_AI); $('aiKey').value = ''; $('aiStatus').textContent = '消しました'; });
   $('aiTest').addEventListener('click', async () => {
     $('aiStatus').textContent = 'テスト中…';
-    try { $('aiStatus').textContent = '✓ ' + (await translate(['今月はお預かりが混み合っています']))[0]; }
+    try { $('aiStatus').textContent = '✓ ' + (await translate(['小型犬なら預かれます']))[0]; }
     catch (e) { $('aiStatus').textContent = '✕ ' + e.message; }
   });
 
-  /* ---------- 設定 ---------- */
-  function fillSettings() {
-    const s = data.settings;
-    $('sName').value = s.businessName || '';
-    $('sMessage').value = s.message || '';
-    $('sRateNote').value = s.rateNote || '';
-    $('sContactLabel').value = s.contactLabel || '';
-    $('sContactUrl').value = s.contactUrl || '';
-    $('sHeroImage').value = s.heroImage || '';
-    $('sSeason').value = s.season || 'auto';
-    $('seasonPreview').href = './' + (/^\d+$/.test(s.season || '') ? '?month=' + s.season : '');
-    $('sMonths').value = s.monthsAhead || 3;
-    $('sShowCounts').checked = !!s.showCounts;
-    $('sExclusive').checked = !!s.exclusiveNight;
-    $('svcSettings').innerHTML = ['stay', 'boarding', 'visit'].map((k) => {
-      const v = s.services[k];
-      const cap = k === 'visit' ? '' : `<div><label>1晩に受けられる数</label><input type="number" min="0" data-svc="${k}" data-f="capacity" value="${v.capacity}"></div>`;
-      return `<div style="border-top:1px solid var(--line);padding-top:8px;margin-top:8px">
-        <label class="check"><input type="checkbox" data-svc="${k}" data-f="enabled" ${v.enabled ? 'checked' : ''}> 受け付ける</label>
-        <div class="row">
-          <div><label>名前</label><input type="text" data-svc="${k}" data-f="label" value="${PS.esc(v.label)}"></div>
-          <div><label>カレンダー用の1文字</label><input type="text" maxlength="2" data-svc="${k}" data-f="short" value="${PS.esc(v.short)}"></div>
-          ${cap}
-        </div>
-        <label>説明</label><input type="text" data-svc="${k}" data-f="note" value="${PS.esc(v.note || '')}">
-        <label>話すときの呼び方（カンマ区切りで追加）<span class="muted"> 標準で「${PS.esc(PSNLP.DEFAULT_ALIASES[k].slice(0, 4).join('・'))}」などは分かります</span></label>
-        <input type="text" data-svc="${k}" data-f="aliases" value="${PS.esc(v.aliases || '')}" placeholder="例：${k === 'visit' ? 'ちょこっとシッター, 散歩' : k === 'stay' ? 'ナイトシッター' : 'お預け'}">
-      </div>`;
-    }).join('');
-    $('svcSettings').querySelectorAll('input').forEach((el) => el.addEventListener('change', () => {
-      const v = data.settings.services[el.dataset.svc];
-      const f = el.dataset.f;
-      v[f] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Math.max(0, Number(el.value) || 0) : el.value;
-      markDirty();
-      if (f === 'label') autoTranslate([['services', el.dataset.svc, 'labelEn']]);
-      if (f === 'note') autoTranslate([['services', el.dataset.svc, 'noteEn']]);
-      renderEnSettings();
-    }));
-    renderSlotSettings();
-    renderEnSettings();
+  /* ---------- GitHub ---------- */
+  function ghConf() { return store.get(LS_GH) || {}; }
+  function ghReady(c) { return c.owner && c.repo && c.path && c.token; }
+  function ghUrl(c) {
+    return `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${c.path.split('/').map(encodeURIComponent).join('/')}`;
   }
-  function renderSlotSettings() {
-    $('slotSettings').innerHTML = data.settings.visitSlots.map((sl, i) => `<div class="slot-row">
-      <input type="text" data-i="${i}" data-f="label" value="${PS.esc(sl.label)}" placeholder="朝">
-      <input type="text" data-i="${i}" data-f="time" value="${PS.esc(sl.time || '')}" placeholder="7:00〜10:00">
-      <input type="number" min="0" data-i="${i}" data-f="capacity" value="${sl.capacity}">
-      <button class="btn danger" data-del="${i}" title="削除">✕</button></div>`).join('');
-    $('slotSettings').querySelectorAll('input').forEach((el) => el.addEventListener('change', () => {
-      const sl = data.settings.visitSlots[Number(el.dataset.i)];
-      sl[el.dataset.f] = el.type === 'number' ? Math.max(0, Number(el.value) || 0) : el.value;
-      updateFormMode(); markDirty();
-      if (el.dataset.f === 'label') autoTranslate([['visitSlots', Number(el.dataset.i), 'labelEn']]);
-      renderEnSettings();
-    }));
-    $('slotSettings').querySelectorAll('button[data-del]').forEach((el) => el.addEventListener('click', () => {
-      if (!confirm('この時間帯を削除しますか？（この時間帯の予約は数えられなくなります）')) return;
-      data.settings.visitSlots.splice(Number(el.dataset.del), 1);
-      renderSlotSettings(); updateFormMode(); markDirty();
-    }));
+  function b64encode(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    bytes.forEach((b) => (bin += String.fromCharCode(b)));
+    return btoa(bin);
   }
-  $('addSlot').addEventListener('click', () => {
-    data.settings.visitSlots.push({ id: 's' + uid(), label: '新しい時間帯', time: '', capacity: 1 });
-    renderSlotSettings(); updateFormMode(); markDirty();
-  });
-  const bindSetting = (id, key, fn) => $(id).addEventListener('change', () => { data.settings[key] = fn($(id)); markDirty(); });
-  bindSetting('sName', 'businessName', (e) => e.value);
-  bindSetting('sMessage', 'message', (e) => e.value);
-  bindSetting('sRateNote', 'rateNote', (e) => e.value);
-  $('sRateNote').addEventListener('change', () => { if (!$('sRateNote').value.trim()) { data.settings.en.rateNote = ''; renderEnSettings(); markDirty(); } else autoTranslate([['en', 'rateNote']]); });
-  bindSetting('sContactLabel', 'contactLabel', (e) => e.value);
-  $('sName').addEventListener('change', () => autoTranslate([['en', 'businessName']]));
-  $('sMessage').addEventListener('change', () => autoTranslate([['en', 'message']]));
-  $('sContactLabel').addEventListener('change', () => autoTranslate([['en', 'contactLabel']]));
-  bindSetting('sContactUrl', 'contactUrl', (e) => e.value.trim());
-  bindSetting('sHeroImage', 'heroImage', (e) => e.value.trim());
-  bindSetting('sSeason', 'season', (e) => e.value);
-  $('sSeason').addEventListener('change', () => { $('seasonPreview').href = './' + (/^\d+$/.test($('sSeason').value) ? '?month=' + $('sSeason').value : ''); });
-  bindSetting('sMonths', 'monthsAhead', (e) => Math.min(12, Math.max(1, Number(e.value) || 3)));
-  bindSetting('sShowCounts', 'showCounts', (e) => e.checked);
-  bindSetting('sExclusive', 'exclusiveNight', (e) => e.checked);
-
-  /* ---------- カレンダー ---------- */
-  function renderCal() {
-    const y = Math.floor(state.idx / 12), m = state.idx % 12;
-    $('monthLabel').textContent = `${y}年 ${m + 1}月`;
-    const services = PS.enabledServices(data);
-    if (state.filter !== 'all' && !services.includes(state.filter)) state.filter = 'all';
-    const defs = [['all', 'すべて']].concat(services.map((k) => [k, data.settings.services[k].label]));
-    $('tabs').innerHTML = defs.map(([k, l]) => `<button type="button" data-k="${k}" class="${k === state.filter ? 'active' : ''}">${PS.esc(l)}</button>`).join('');
-    $('tabs').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { state.filter = b.dataset.k; renderCal(); }));
-    PS.renderCalendar($('calendar'), data, {
-      year: y, month: m, filter: state.filter, selected: state.selected,
-      onSelect: (d) => {
-        state.selected = d;
-        if (!editingId) $('bStart').value = d;
-        renderCal();
-      },
+  function b64decode(b64) {
+    const bin = atob(b64.replace(/\s/g, ''));
+    return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+  }
+  async function ghGet(c) {
+    const res = await fetch(`${ghUrl(c)}?ref=${encodeURIComponent(c.branch || 'main')}&t=${Date.now()}`, {
+      headers: { Authorization: `Bearer ${c.token}`, Accept: 'application/vnd.github+json' }, cache: 'no-store',
     });
-    if (state.selected) PS.renderDetail($('detail'), data, state.selected);
-    else $('detail').innerHTML = '';
+    if (res.status === 404) return { sha: null, json: null };
+    if (!res.ok) throw new Error(`読み込み失敗 (${res.status})`);
+    const j = await res.json();
+    return { sha: j.sha, json: JSON.parse(b64decode(j.content)) };
   }
-  $('prev').addEventListener('click', () => { state.idx--; renderCal(); });
-  $('next').addEventListener('click', () => { state.idx++; renderCal(); });
+  async function ghPut(c, obj) {
+    const cur = await ghGet(c);
+    const body = { message: `空き状況を更新 ${new Date().toLocaleString('ja-JP')}`, content: b64encode(JSON.stringify(obj, null, 2) + '\n'), branch: c.branch || 'main' };
+    if (cur.sha) body.sha = cur.sha;
+    const res = await fetch(ghUrl(c), {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${c.token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`保存失敗 (${res.status}) ${(await res.text()).slice(0, 120)}`);
+  }
+  $('publish').addEventListener('click', async () => {
+    const c = ghConf();
+    if (!ghReady(c)) return alert('先に下の「GitHub保存の設定」を入力してください。\n（設定しない場合は「データをダウンロード」して data.json を差し替えてください）');
+    $('publish').disabled = true;
+    setStatus('保存中…');
+    try {
+      data.updatedAt = new Date().toISOString();
+      await ghPut(c, data);
+      dirty = false;
+      store.del(LS_DRAFT);
+      setStatus('✓ 公開しました（ページへの反映まで1〜2分）');
+    } catch (e) { setStatus('✕ ' + e.message, true); }
+    finally { $('publish').disabled = false; }
+  });
+  $('download').addEventListener('click', () => {
+    data.updatedAt = new Date().toISOString();
+    const blob = new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'data.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  $('upload').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try { data = PS.normalize(JSON.parse(await f.text())); fillSettings(); markDirty(); }
+    catch (err) { alert('読み込めませんでした: ' + err.message); }
+    e.target.value = '';
+  });
+  function fillGh() {
+    const c = ghConf();
+    $('ghOwner').value = c.owner || ''; $('ghRepo').value = c.repo || ''; $('ghBranch').value = c.branch || '';
+    $('ghPath').value = c.path || ''; $('ghToken').value = c.token || '';
+  }
+  $('ghSave').addEventListener('click', () => {
+    store.set(LS_GH, {
+      owner: $('ghOwner').value.trim(), repo: $('ghRepo').value.trim(), branch: $('ghBranch').value.trim() || 'main',
+      path: $('ghPath').value.trim() || 'docs/data.json', token: $('ghToken').value.trim(),
+    });
+    fillGh();
+    setStatus('GitHub設定を保存しました');
+  });
+  $('ghClear').addEventListener('click', () => { store.del(LS_GH); fillGh(); setStatus('設定を消しました'); });
+  $('ghLoad').addEventListener('click', async () => {
+    const c = ghConf();
+    if (!ghReady(c)) return alert('先に設定を保存してください');
+    if (dirty && !confirm('未公開の変更は消えます。読み込みますか？')) return;
+    try {
+      data = PS.normalize((await ghGet(c)).json);
+      dirty = false; store.del(LS_DRAFT);
+      fillSettings(); renderAll();
+      setStatus('GitHubから読み込みました');
+    } catch (e) { setStatus('✕ ' + e.message, true); }
+  });
 
-  function renderAll() { renderCal(); renderBookings(); renderRules(); renderClosed(); }
-
+  function renderAll() { renderCal(); renderEntries(); }
   window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
-  /* ---------- 起動 ---------- */
   (async function init() {
     fillGh();
     const draft = store.get(LS_DRAFT);
@@ -830,19 +581,14 @@
         setStatus('● 未公開の変更があります', true);
       } else {
         store.del(LS_DRAFT);
-        if (ghReady(c)) {
-          data = PS.normalize((await ghGet(c)).json);
-        } else {
-          const res = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
-          data = PS.normalize(await res.json());
-        }
+        if (ghReady(c)) data = PS.normalize((await ghGet(c)).json);
+        else data = PS.normalize(await (await fetch('data.json?t=' + Date.now(), { cache: 'no-store' })).json());
       }
     } catch (e) {
       setStatus('データを読み込めなかったので空の状態で開きました（' + e.message + '）', true);
     }
-    $('bStart').value = PS.today();
+    $('mStart').value = PS.today();
     fillSettings();
-    updateFormMode();
     renderAll();
   })();
 })();
