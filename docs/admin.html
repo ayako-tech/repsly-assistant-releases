@@ -34,6 +34,14 @@
     details summary { cursor: pointer; font-weight: 700; }
     .slot-row { display: grid; grid-template-columns: 1fr 1.5fr 80px 36px; gap: 6px; margin-bottom: 6px; }
     .muted { color: var(--muted); font-size: .85rem; }
+    .voice { border-color: var(--accent); }
+    .mic { font-size: 1rem; }
+    .mic.on { background: #b3413a; border-color: #b3413a; color: #fff; }
+    .actions { list-style: none; padding: 0; margin: 10px 0 0; }
+    .actions li { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-top: 1px solid var(--line); font-size: .92rem; }
+    .actions li.err { color: #b3413a; }
+    .examples { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+    .examples button { border: 1px dashed var(--line); background: #fff; border-radius: 999px; padding: 3px 10px; font: inherit; font-size: .8rem; color: var(--muted); cursor: pointer; }
   </style>
 </head>
 <body>
@@ -46,6 +54,21 @@
     <button class="btn" id="download">データをダウンロード</button>
     <label class="btn" style="margin:0;color:var(--text)">データを読み込む<input type="file" id="upload" accept=".json,application/json" hidden></label>
     <span class="status" id="status"></span>
+  </div>
+
+  <!-- 話して設定 -->
+  <div class="card voice">
+    <h2 class="sec">🎤 話して設定する</h2>
+    <p class="muted">話すか文字で入れて「読み取る」を押してください。内容を確認してから反映します。</p>
+    <div class="examples" id="vExamples"></div>
+    <textarea id="vText" placeholder="例：20日から25日はドロップオフしか受けられない"></textarea>
+    <div class="btns">
+      <button class="btn mic" id="vMic" type="button">🎤 話す</button>
+      <button class="btn primary" id="vParse" type="button">読み取る</button>
+      <button class="btn" id="vClear" type="button">クリア</button>
+    </div>
+    <p class="muted" id="vMicNote" hidden>このブラウザは音声入力ボタンに対応していません。キーボードのマイクボタンで話して入力できます。</p>
+    <div id="vPreview"></div>
   </div>
 
   <!-- 予定 -->
@@ -97,6 +120,11 @@
   </div>
 
   <!-- 休み -->
+  <div class="card">
+    <h2 class="sec">受付制限（この期間は○○だけ など）</h2>
+    <ul class="list" id="rulesList"></ul>
+  </div>
+
   <div class="card">
     <h2 class="sec">お休み</h2>
     <div class="row">
@@ -160,6 +188,7 @@
 </div>
 
 <script src="common.js"></script>
+<script src="nlp.js"></script>
 <script>
 (function () {
   'use strict';
@@ -464,6 +493,95 @@
     }));
   }
 
+  /* ---------- 受付制限 ---------- */
+  function ruleText(r) {
+    const sv = data.settings.services;
+    const range = r.start === (r.end || r.start) ? PS.fmtDate(r.start) : `${PS.fmtDate(r.start)}〜${PS.fmtDate(r.end)}`;
+    const parts = [];
+    const blocked = (r.block || []).map((k) => (sv[k] ? sv[k].label : k));
+    if (blocked.length) parts.push(`${blocked.join('・')} 受付なし`);
+    if (Array.isArray(r.visitSlots)) {
+      const ls = r.visitSlots.map((id) => (data.settings.visitSlots.find((s) => s.id === id) || { label: id }).label);
+      parts.push(ls.length ? `訪問は ${ls.join('・')} のみ` : '訪問 受付なし');
+    }
+    return `${range}　<span class="muted">${PS.esc(parts.join(' / ') || '制限なし')}</span>`;
+  }
+  function renderRules() {
+    const t = PS.today();
+    const list = data.rules.filter((r) => (r.end || r.start) >= t).sort((a, b) => (a.start < b.start ? -1 : 1));
+    $('rulesList').innerHTML = list.length
+      ? list.map((r) => `<li><div>${ruleText(r)}</div><button class="btn danger" data-i="${data.rules.indexOf(r)}">削除</button></li>`).join('')
+      : '<li class="muted">制限はありません。上の「話して設定する」から入れられます</li>';
+    $('rulesList').querySelectorAll('button[data-i]').forEach((el) =>
+      el.addEventListener('click', () => { data.rules.splice(Number(el.dataset.i), 1); markDirty(); })
+    );
+  }
+
+  /* ---------- 話して設定 ---------- */
+  const EXAMPLES = ['20日から25日はドロップオフしか受けられない', '12/1はお休み', '来週の土日はお泊まりNG',
+    '10日から12日お預かりの予約入った', '15日は朝だけ', '20日から25日の制限は解除'];
+  $('vExamples').innerHTML = EXAMPLES.map((e) => `<button type="button">${PS.esc(e)}</button>`).join('');
+  $('vExamples').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { $('vText').value = b.textContent; parseVoice(); }));
+  let pending = [];
+  function parseVoice() {
+    const text = $('vText').value.trim();
+    if (!text) { $('vPreview').innerHTML = ''; return; }
+    pending = PSNLP.parse(data, text);
+    const ok = pending.filter((a) => a.type !== 'error');
+    let html = '<ul class="actions">' + pending.map((a, i) => a.type === 'error'
+      ? `<li class="err">⚠️ ${PS.esc(a.text)}</li>`
+      : `<li><input type="checkbox" checked data-i="${i}"><span>${PS.esc(a.text)}</span></li>`).join('') + '</ul>';
+    if (ok.length) {
+      html += `<div class="btns"><button class="btn primary" id="vApply" type="button">これで反映</button>`;
+      if (ghReady(ghConf())) html += `<button class="btn primary" id="vApplyPub" type="button">反映してすぐ公開</button>`;
+      html += `</div>`;
+    }
+    $('vPreview').innerHTML = html;
+    if (ok.length) {
+      $('vApply').addEventListener('click', () => applyVoice(false));
+      if ($('vApplyPub')) $('vApplyPub').addEventListener('click', () => applyVoice(true));
+    }
+  }
+  function applyVoice(publish) {
+    const chosen = [...$('vPreview').querySelectorAll('input[data-i]:checked')].map((el) => pending[Number(el.dataset.i)]);
+    if (!chosen.length) return;
+    PSNLP.apply(data, chosen);
+    $('vText').value = '';
+    $('vPreview').innerHTML = `<p class="muted">✓ ${chosen.length}件を反映しました${publish ? '' : '（「公開する」を押すとお客さんのページに出ます）'}</p>`;
+    const first = chosen[0];
+    const d = first.start || (first.rule || first.closed || first.booking || {}).start;
+    if (d) { const x = PS.parse(d); state.idx = x.getFullYear() * 12 + x.getMonth(); state.selected = d; }
+    markDirty();
+    if (publish) $('publish').click();
+  }
+  $('vParse').addEventListener('click', parseVoice);
+  $('vClear').addEventListener('click', () => { $('vText').value = ''; $('vPreview').innerHTML = ''; });
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    $('vMic').hidden = true;
+    $('vMicNote').hidden = false;
+  } else {
+    let rec = null;
+    $('vMic').addEventListener('click', () => {
+      if (rec) { rec.stop(); return; }
+      rec = new SR();
+      rec.lang = 'ja-JP';
+      rec.interimResults = false;
+      rec.continuous = false;
+      $('vMic').classList.add('on');
+      $('vMic').textContent = '■ 聞いています…（押すと終了）';
+      rec.onresult = (e) => {
+        const said = [...e.results].map((r) => r[0].transcript).join('');
+        $('vText').value = ($('vText').value ? $('vText').value + '。' : '') + said;
+        parseVoice();
+      };
+      rec.onerror = (e) => { if (e.error !== 'no-speech' && e.error !== 'aborted') alert('音声入力エラー：' + e.error + '\nマイクの使用を許可してください'); };
+      rec.onend = () => { rec = null; $('vMic').classList.remove('on'); $('vMic').textContent = '🎤 話す'; };
+      rec.start();
+    });
+  }
+
   /* ---------- 設定 ---------- */
   function fillSettings() {
     const s = data.settings;
@@ -485,6 +603,8 @@
           ${cap}
         </div>
         <label>説明</label><input type="text" data-svc="${k}" data-f="note" value="${PS.esc(v.note || '')}">
+        <label>話すときの呼び方（カンマ区切りで追加）<span class="muted"> 標準で「${PS.esc(PSNLP.DEFAULT_ALIASES[k].slice(0, 4).join('・'))}」などは分かります</span></label>
+        <input type="text" data-svc="${k}" data-f="aliases" value="${PS.esc(v.aliases || '')}" placeholder="例：${k === 'visit' ? 'ちょこっとシッター, 散歩' : k === 'stay' ? 'ナイトシッター' : 'お預け'}">
       </div>`;
     }).join('');
     $('svcSettings').querySelectorAll('input').forEach((el) => el.addEventListener('change', () => {
@@ -548,7 +668,7 @@
   $('prev').addEventListener('click', () => { state.idx--; renderCal(); });
   $('next').addEventListener('click', () => { state.idx++; renderCal(); });
 
-  function renderAll() { renderCal(); renderBookings(); renderClosed(); }
+  function renderAll() { renderCal(); renderBookings(); renderRules(); renderClosed(); }
 
   window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 

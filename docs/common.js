@@ -44,6 +44,9 @@
       ],
     },
     closed: [],
+    // 受付制限: { id, start, end, block: ['stay'|'boarding'|'visit'], visitSlots: null | [slotId...] }
+    //   start〜end（両端含む）の間、block のサービスは受付なし。visitSlots があれば訪問はその時間帯のみ。
+    rules: [],
     bookings: [],
     updatedAt: null,
   };
@@ -64,6 +67,7 @@
     if (Array.isArray(s.visitSlots)) d.settings.visitSlots = s.visitSlots;
     if (!Array.isArray(d.settings.regularHolidays)) d.settings.regularHolidays = [];
     d.closed = Array.isArray(raw.closed) ? raw.closed : [];
+    d.rules = Array.isArray(raw.rules) ? raw.rules : [];
     d.bookings = Array.isArray(raw.bookings) ? raw.bookings : [];
     d.updatedAt = raw.updatedAt || null;
     return d;
@@ -79,6 +83,20 @@
       if (c.start <= date && date <= end) return { closed: true, note: c.note || 'お休み' };
     }
     return { closed: false, note: '' };
+  }
+
+  function ruleInfo(data, date) {
+    const block = new Set();
+    let slots = null;
+    for (const r of data.rules) {
+      const end = r.end || r.start;
+      if (!(r.start <= date && date <= end)) continue;
+      (r.block || []).forEach((k) => block.add(k));
+      if (Array.isArray(r.visitSlots)) {
+        slots = slots ? slots.filter((x) => r.visitSlots.includes(x)) : r.visitSlots.slice();
+      }
+    }
+    return { block, slots };
   }
 
   // お泊まり・お預かり: start(開始日) 〜 end(終了日=チェックアウト日) の「夜」を占有。end当日の夜は空く。
@@ -110,14 +128,16 @@
     const ci = closedInfo(data, date);
     const past = date < today();
     const u = usage(data, date);
+    const ri = ruleInfo(data, date);
     const res = { date, past, closed: ci.closed, closedNote: ci.note };
 
     const night = (key, used, other) => {
       const cap = Math.max(0, Number(sv[key].capacity) || 0);
       let remaining = Math.max(0, cap - used);
       if (st.exclusiveNight && other > 0) remaining = 0;
-      if (ci.closed || past) remaining = 0;
-      return { enabled: !!sv[key].enabled, cap, used, remaining };
+      const blocked = ri.block.has(key);
+      if (ci.closed || past || blocked) remaining = 0;
+      return { enabled: !!sv[key].enabled, cap, used, remaining, blocked };
     };
     res.stay = night('stay', u.stay, u.boarding);
     res.boarding = night('boarding', u.boarding, u.stay);
@@ -125,21 +145,24 @@
     res.visits = st.visitSlots.map((slot) => {
       const cap = Math.max(0, Number(slot.capacity) || 0);
       const used = u.visit[slot.id] || 0;
-      const remaining = ci.closed || past ? 0 : Math.max(0, cap - used);
-      return { id: slot.id, label: slot.label, time: slot.time, cap, used, remaining };
+      const blocked = ri.block.has('visit') || (ri.slots !== null && !ri.slots.includes(slot.id));
+      const remaining = ci.closed || past || blocked ? 0 : Math.max(0, cap - used);
+      return { id: slot.id, label: slot.label, time: slot.time, cap, used, remaining, blocked };
     });
     res.visit = { enabled: !!sv.visit.enabled && st.visitSlots.length > 0 };
     const open = res.visits.filter((v) => v.remaining > 0).length;
-    res.visit.mark = open === 0 ? 'full' : open === res.visits.length ? 'ok' : 'few';
+    const allBlocked = res.visits.every((v) => v.blocked);
+    res.visit.mark = allBlocked ? 'na' : open === 0 ? 'full' : open === res.visits.filter((v) => !v.blocked).length && !res.visits.some((v) => v.blocked) ? 'ok' : 'few';
     return res;
   }
 
   function mark(x) {
+    if (x.blocked) return 'na';
     if (x.remaining <= 0) return 'full';
     if (x.remaining === 1 && x.cap > 1) return 'few';
     return 'ok';
   }
-  const SYMBOL = { ok: '○', few: '△', full: '×' };
+  const SYMBOL = { ok: '○', few: '△', full: '×', na: '－' };
 
   function serviceMark(ds, key) {
     if (ds.past) return 'past';
@@ -208,7 +231,7 @@
     const ds = dayStatus(data, date);
     const st = data.settings;
     const showCounts = st.showCounts;
-    const label = { ok: '空きあり', few: '残りわずか', full: '満席', closed: 'お休み', past: '—' };
+    const label = { ok: '空きあり', few: '残りわずか', full: '満席', na: 'この日は受付していません', closed: 'お休み', past: '—' };
     let html = `<h3>${fmtDate(date)}</h3>`;
     if (ds.closed) {
       html += `<p class="detail-closed">${esc(ds.closedNote)}のため受付していません</p>`;
@@ -240,7 +263,7 @@
 
   global.PS = {
     pad, ymd, parse, addDays, today, fmtDate, esc, WEEK,
-    DEFAULT_DATA, clone, normalize, dayStatus, usage, mark, serviceMark,
+    DEFAULT_DATA, clone, normalize, dayStatus, usage, ruleInfo, mark, serviceMark,
     enabledServices, renderCalendar, renderDetail, SYMBOL,
   };
 })(window);
