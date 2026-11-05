@@ -5,13 +5,16 @@
   --ink: #2a2b28;
   --muted: #77756f;
   --hair: #dcd8d0;
-  --deep: #34402f;          /* deep olive */
-  --deep-2: #4b5a44;
+  --deep: #3d3c38;          /* charcoal for icons & button */
+  --accent: #6f6a5f;        /* set per season */
+  --hero-bg: #ece8e1;       /* set per season */
+  --hero-ink: #2a2b28;      /* set per season */
   --ok: #b9c8a7;            /* sage */
   --few: #dcc28c;           /* muted ochre */
   --na: #ebe8e2;
   --closed: #3b3a36;
   --col: 38px;
+  --ms: 1.5;                /* seasonal motif scale */
   --lab: 110px;
   --serif: "Cormorant Garamond", "Times New Roman", Georgia, serif;
   --sans: "Manrope", "Helvetica Neue", Arial, sans-serif;
@@ -23,7 +26,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--s
 .wrap { max-width: 1080px; margin: 0 auto; padding: 22px 16px 120px; position: relative; }
 
 /* faint paw trail across the page */
-.trail { position: fixed; inset: 0; pointer-events: none; z-index: 0; color: var(--deep); opacity: .045; overflow: hidden; }
+.trail { position: fixed; inset: 0; pointer-events: none; z-index: 0; color: var(--accent); opacity: .07; overflow: hidden; }
 .trail svg { position: absolute; width: 34px; height: 34px; }
 .wrap > * { position: relative; z-index: 1; }
 
@@ -31,17 +34,25 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--s
 
 /* Hero */
 .hero {
-  position: relative; overflow: hidden; border-radius: 6px; color: #f3f1ea;
-  background: var(--deep); padding: 46px 30px 40px; min-height: 260px;
+  position: relative; overflow: hidden; border-radius: 6px; color: var(--hero-ink);
+  background: var(--hero-bg); padding: 46px 30px 40px; min-height: 280px; border: 1px solid rgba(0, 0, 0, .05);
 }
 .hero .photo { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: .28; filter: grayscale(.4); }
-.hero .art { position: absolute; right: 2%; bottom: -6px; display: flex; align-items: flex-end; gap: 0; color: #f3f1ea; opacity: .16; pointer-events: none; }
+.hero .art { position: absolute; right: 3%; bottom: -6px; display: flex; align-items: flex-end; gap: 0; color: var(--hero-ink); opacity: .62; pointer-events: none; }
+.hero .motifs { position: absolute; inset: 0; pointer-events: none; }
+.hero .motifs span { position: absolute; display: block; opacity: .8; animation: drift 7s ease-in-out infinite alternate; }
+.hero .motifs span:nth-child(2n) { animation-duration: 9s; animation-delay: -3s; }
+.hero .motifs span:nth-child(3n) { animation-duration: 11s; animation-delay: -5s; }
+.hero .motifs svg { width: 100%; height: 100%; display: block; }
+@keyframes drift { from { transform: translateY(-3px) rotate(var(--r, 0deg)); } to { transform: translateY(4px) rotate(calc(var(--r, 0deg) + 8deg)); } }
+@media (prefers-reduced-motion: reduce) { .hero .motifs span { animation: none; transform: rotate(var(--r, 0deg)); } }
+.hero .eyebrow, .hero h1, .hero p { position: relative; z-index: 1; }
 .hero .art .cat { width: 150px; }
 .hero .art .dog { width: 190px; margin-left: -24px; }
-.hero .eyebrow { font-size: .72rem; letter-spacing: .28em; text-transform: uppercase; opacity: .8; }
+.hero .eyebrow { font-size: .72rem; letter-spacing: .24em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
 .hero .eyebrow::before { content: ""; display: inline-block; width: 28px; height: 1px; background: currentColor; vertical-align: middle; margin-right: 10px; }
 .hero h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(2.4rem, 7vw, 4.2rem); line-height: 1.02; margin: 16px 0 14px; max-width: 13ch; letter-spacing: -.01em; }
-.hero p { margin: 0; font-size: .98rem; max-width: 44ch; opacity: .85; white-space: pre-wrap; }
+.hero p { margin: 0; font-size: .98rem; max-width: 40ch; opacity: .8; white-space: pre-wrap; }
 
 /* Service chips */
 .chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0; margin: 26px 0 6px; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }
@@ -122,14 +133,14 @@ h2.t .n { font-family: var(--sans); font-size: .72rem; letter-spacing: .2em; col
   padding: 16px 18px; border-radius: 4px; box-shadow: 0 10px 30px rgba(42, 43, 40, .22); z-index: 10;
 }
 .foot { text-align: center; font-size: .78rem; color: var(--muted); margin-top: 30px; }
-.foot .art { display: flex; justify-content: center; gap: 4px; color: var(--deep); opacity: .22; margin-bottom: 10px; }
+.foot .art { display: flex; justify-content: center; gap: 4px; color: var(--accent); opacity: .35; margin-bottom: 10px; }
 .foot .art svg { width: 54px; }
 
 @media (max-width: 520px) {
-  :root { --col: 34px; --lab: 86px; }
+  :root { --col: 34px; --lab: 86px; --ms: 1; }
   .hero { padding: 34px 20px 30px; min-height: 240px; }
   .hero { padding-bottom: 96px; }
-  .hero .art { opacity: .13; }
+  .hero .art { opacity: .5; }
   .hero .art .cat { width: 84px; }
   .hero .art .dog { width: 108px; }
   .chip { border-right: 0; border-bottom: 1px solid var(--hair); }

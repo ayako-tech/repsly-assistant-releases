@@ -15,6 +15,7 @@
   <div class="wrap">
     <section class="hero">
       <div class="photo" id="photo" hidden></div>
+      <div class="motifs" id="motifs"></div>
       <div class="art" id="heroArt"></div>
       <span class="eyebrow">Availability</span>
       <h1 id="title">Pet Sitting</h1>
@@ -46,6 +47,7 @@
 
   <script src="common.js"></script>
   <script src="art.js"></script>
+  <script src="seasons.js"></script>
   <script>
   (async function () {
     const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -54,7 +56,6 @@
       boarding: svg('<rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2"/><circle cx="12" cy="14.5" r="1.6"/><circle cx="9.4" cy="12" r=".8"/><circle cx="14.6" cy="12" r=".8"/>'),
       visit: svg('<path d="M6 21V4a1 1 0 011-1h10a1 1 0 011 1v17"/><path d="M3 21h18"/><circle cx="14.5" cy="12.5" r=".6" fill="currentColor"/>'),
     };
-    document.getElementById('heroArt').innerHTML = `<span class="cat">${PSART.CAT}</span><span class="dog">${PSART.DOG}</span>`;
     document.getElementById('footArt').innerHTML = PSART.PAW + PSART.PAW;
     (function trail() {
       const el = document.getElementById('trail');
@@ -78,6 +79,18 @@
     document.title = en.businessName || 'Availability';
     document.getElementById('title').textContent = en.businessName || 'Pet Sitting';
     document.getElementById('message').textContent = en.message || '';
+    // seasonal look (?month=12 to preview a month)
+    const q = new URLSearchParams(location.search).get('month');
+    const season = PSSEASON.pick(st.season, new Date(), q);
+    const root = document.documentElement.style;
+    root.setProperty('--hero-bg', season.bg);
+    root.setProperty('--hero-ink', season.ink);
+    root.setProperty('--accent', season.accent);
+    document.querySelector('.hero .eyebrow').textContent = season.line;
+    document.getElementById('heroArt').innerHTML =
+      `<span class="cat">${PSART.cat(season.cat ? season.cat() : '')}</span><span class="dog">${PSART.dog(season.dog ? season.dog() : '')}</span>`;
+    document.getElementById('motifs').innerHTML = season.motifs.map(([k, c, x, y, size, r]) =>
+      `<span style="left:${x}%;top:${y}%;width:calc(${size}px * var(--ms));height:calc(${size}px * var(--ms));--r:${r}deg">${PSART.motif(k, c)}</span>`).join('');
     if (st.heroImage) {
       const ph = document.getElementById('photo');
       ph.style.backgroundImage = `url("${String(st.heroImage).replace(/["\\]/g, '')}")`;

@@ -150,6 +150,19 @@
       </div>
       <label>トップの背景写真（任意・URL）<span class="muted"> 自分のペットの写真などを使えます。空欄なら猫と犬の線画になります</span></label>
       <input type="url" id="sHeroImage" placeholder="https://... または photo.jpg（docsフォルダに置いた画像）">
+      <label>季節の飾り（お客さん用ページのトップ）</label>
+      <div class="row">
+        <div><select id="sSeason">
+          <option value="auto">自動（月ごとに変わる）</option>
+          <option value="off">飾りなし</option>
+          <option value="1">いつも1月（雪）</option><option value="2">いつも2月（バレンタイン）</option><option value="3">いつも3月（クローバー）</option>
+          <option value="4">いつも4月（春の雨）</option><option value="5">いつも5月（花）</option><option value="6">いつも6月（夏）</option>
+          <option value="7">いつも7月（独立記念日）</option><option value="8">いつも8月（夏の海）</option><option value="9">いつも9月（初秋）</option>
+          <option value="10">いつも10月（ハロウィン）</option><option value="11">いつも11月（感謝祭）</option><option value="12">いつも12月（クリスマス）</option>
+        </select></div>
+        <div><a class="btn" id="seasonPreview" href="./" target="_blank" style="display:inline-block;text-decoration:none">プレビュー</a></div>
+      </div>
+      <p class="muted">1月 雪／2月 バレンタイン／3月 クローバー／4月 春の雨とチューリップ／5月 花／6月 夏／7月 独立記念日／8月 夏の海／9月 初秋／10月 ハロウィン／11月 感謝祭／12月 クリスマス</p>
       <div class="row">
         <div><label>何ヶ月先まで見せるか</label><input type="number" id="sMonths" min="1" max="12"></div>
       </div>
@@ -703,6 +716,8 @@
     $('sContactLabel').value = s.contactLabel || '';
     $('sContactUrl').value = s.contactUrl || '';
     $('sHeroImage').value = s.heroImage || '';
+    $('sSeason').value = s.season || 'auto';
+    $('seasonPreview').href = './' + (/^\d+$/.test(s.season || '') ? '?month=' + s.season : '');
     $('sMonths').value = s.monthsAhead || 3;
     $('sShowCounts').checked = !!s.showCounts;
     $('sExclusive').checked = !!s.exclusiveNight;
@@ -765,6 +780,8 @@
   $('sContactLabel').addEventListener('change', () => autoTranslate([['en', 'contactLabel']]));
   bindSetting('sContactUrl', 'contactUrl', (e) => e.value.trim());
   bindSetting('sHeroImage', 'heroImage', (e) => e.value.trim());
+  bindSetting('sSeason', 'season', (e) => e.value);
+  $('sSeason').addEventListener('change', () => { $('seasonPreview').href = './' + (/^\d+$/.test($('sSeason').value) ? '?month=' + $('sSeason').value : ''); });
   bindSetting('sMonths', 'monthsAhead', (e) => Math.min(12, Math.max(1, Number(e.value) || 3)));
   bindSetting('sShowCounts', 'showCounts', (e) => e.checked);
   bindSetting('sExclusive', 'exclusiveNight', (e) => e.checked);
