@@ -148,6 +148,8 @@
         <div><label>問い合わせボタンの文字</label><input type="text" id="sContactLabel" placeholder="LINEで問い合わせ"></div>
         <div><label>問い合わせ先URL（LINE・メール・フォームなど）</label><input type="url" id="sContactUrl" placeholder="https://lin.ee/... または mailto:..."></div>
       </div>
+      <label>トップの背景写真（任意・URL）<span class="muted"> 自分のペットの写真などを使えます。空欄なら猫と犬の線画になります</span></label>
+      <input type="url" id="sHeroImage" placeholder="https://... または photo.jpg（docsフォルダに置いた画像）">
       <div class="row">
         <div><label>何ヶ月先まで見せるか</label><input type="number" id="sMonths" min="1" max="12"></div>
       </div>
@@ -700,6 +702,7 @@
     $('sMessage').value = s.message || '';
     $('sContactLabel').value = s.contactLabel || '';
     $('sContactUrl').value = s.contactUrl || '';
+    $('sHeroImage').value = s.heroImage || '';
     $('sMonths').value = s.monthsAhead || 3;
     $('sShowCounts').checked = !!s.showCounts;
     $('sExclusive').checked = !!s.exclusiveNight;
@@ -761,6 +764,7 @@
   $('sMessage').addEventListener('change', () => autoTranslate([['en', 'message']]));
   $('sContactLabel').addEventListener('change', () => autoTranslate([['en', 'contactLabel']]));
   bindSetting('sContactUrl', 'contactUrl', (e) => e.value.trim());
+  bindSetting('sHeroImage', 'heroImage', (e) => e.value.trim());
   bindSetting('sMonths', 'monthsAhead', (e) => Math.min(12, Math.max(1, Number(e.value) || 3)));
   bindSetting('sShowCounts', 'showCounts', (e) => e.checked);
   bindSetting('sExclusive', 'exclusiveNight', (e) => e.checked);

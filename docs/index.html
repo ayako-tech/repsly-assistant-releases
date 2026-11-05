@@ -7,14 +7,16 @@
   <title>Availability</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Manrope:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="client.css">
 </head>
 <body>
+  <div class="trail" id="trail"></div>
   <div class="wrap">
-    <section class="hero sticker">
-      <div class="paws" aria-hidden="true">🐾</div>
-      <span class="eyebrow">Live availability</span>
+    <section class="hero">
+      <div class="photo" id="photo" hidden></div>
+      <div class="art" id="heroArt"></div>
+      <span class="eyebrow">Availability</span>
       <h1 id="title">Pet Sitting</h1>
       <p id="message"></p>
     </section>
@@ -22,10 +24,10 @@
     <div class="chips" id="chips"></div>
     <p class="chip-hint">Tap a service to show or hide it.</p>
 
-    <h2 class="t"><span class="n">1</span>Pick your dates</h2>
+    <h2 class="t"><span class="n">01</span>Pick your dates</h2>
     <div class="checker sticker" id="checker"></div>
 
-    <h2 class="t"><span class="n">2</span>See what's open</h2>
+    <h2 class="t"><span class="n">02</span>See what's open</h2>
     <div class="tl-card sticker">
       <div class="tl-scroll" id="scroll"><div class="tl" id="tl"></div></div>
       <div class="legend">
@@ -38,14 +40,32 @@
     </div>
     <p class="scroll-hint">← Swipe sideways to see later dates. Tap a day to start, tap another to finish.</p>
 
-    <p class="foot" id="updated"></p>
+    <div class="foot"><div class="art" id="footArt"></div><span id="updated"></span></div>
   </div>
   <a class="cta" id="contact" hidden></a>
 
   <script src="common.js"></script>
+  <script src="art.js"></script>
   <script>
   (async function () {
-    const ICON = { stay: '🏠', boarding: '🧳', visit: '🚪' };
+    const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+    const ICON = {
+      stay: svg('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-5h6v5"/><path d="M15.5 7.5c.6-1 1.6-1.5 2.5-1.2"/>'),
+      boarding: svg('<rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2"/><circle cx="12" cy="14.5" r="1.6"/><circle cx="9.4" cy="12" r=".8"/><circle cx="14.6" cy="12" r=".8"/>'),
+      visit: svg('<path d="M6 21V4a1 1 0 011-1h10a1 1 0 011 1v17"/><path d="M3 21h18"/><circle cx="14.5" cy="12.5" r=".6" fill="currentColor"/>'),
+    };
+    document.getElementById('heroArt').innerHTML = `<span class="cat">${PSART.CAT}</span><span class="dog">${PSART.DOG}</span>`;
+    document.getElementById('footArt').innerHTML = PSART.PAW + PSART.PAW;
+    (function trail() {
+      const el = document.getElementById('trail');
+      let h = '';
+      for (let i = 0; i < 9; i++) {
+        const x = 6 + i * 11 + (i % 2 ? 3 : -3), y = 18 + i * 9;
+        h += `<span style="position:absolute;left:${x}%;top:${y}%;transform:rotate(${35 + (i % 2 ? 18 : -10)}deg)">${PSART.PAW}</span>`;
+      }
+      el.innerHTML = h;
+      el.querySelectorAll('span > svg').forEach((s) => { s.style.width = '30px'; s.style.height = '30px'; });
+    })();
     let data;
     try {
       const res = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
@@ -58,11 +78,17 @@
     document.title = en.businessName || 'Availability';
     document.getElementById('title').textContent = en.businessName || 'Pet Sitting';
     document.getElementById('message').textContent = en.message || '';
+    if (st.heroImage) {
+      const ph = document.getElementById('photo');
+      ph.style.backgroundImage = `url("${String(st.heroImage).replace(/["\\]/g, '')}")`;
+      ph.hidden = false;
+      document.getElementById('heroArt').hidden = true;
+    }
 
     if (st.contactUrl) {
       const a = document.getElementById('contact');
       a.href = st.contactUrl;
-      a.textContent = (en.contactLabel || 'Contact me to book') + ' →';
+      a.textContent = (en.contactLabel || 'Contact me to book') + '  →';
       a.target = '_blank';
       a.rel = 'noopener';
       a.hidden = false;
@@ -104,7 +130,7 @@
     function cellFor(m, remaining) {
       if (m === 'closed') return ['closed', 'OFF'];
       if (m === 'na') return ['na', '–'];
-      if (m === 'full') return ['full', '✕'];
+      if (m === 'full') return ['full', ''];
       if (m === 'few') return ['few', st.showCounts ? String(remaining) : ''];
       return ['ok', ''];
     }
@@ -147,7 +173,7 @@
         if (!shown.has(k)) continue;
         const s = PS.svcText(data, k, 'en');
         if (k === 'visit') {
-          h += `<div class="lab grp">${PS.esc(s.label)}</div><div class="lab grp" style="grid-column: 2 / -1; position: static; border-right: 0"></div>`;
+          h += `<div class="lab grp">${PS.esc(s.label)}</div><div class="grpfill" style="grid-column: 2 / -1"></div>`;
           st.visitSlots.forEach((slot, i) => {
             row(PS.slotText(slot, 'en').label, true, (x) => {
               if (x.closed) return cellFor('closed');
@@ -199,7 +225,7 @@
           const allOk = perSlot.every((p) => !p.bad.length);
           const allNo = perSlot.every((p) => p.bad.length === visitDays.length);
           const cls = allOk ? 'ok' : allNo ? 'no' : 'partial';
-          html += `<div class="res ${cls}"><div class="h"><span>${ICON[k]} ${PS.esc(s.label)}</span><span>${allOk ? '✓ Open' : allNo ? '✕' : 'Partly'}</span></div>`;
+          html += `<div class="res ${cls}"><div class="h"><span><span class="ico">${ICON[k]}</span>${PS.esc(s.label)}</span><span>${allOk ? 'Open' : allNo ? 'Unavailable' : 'Partly open'}</span></div>`;
           if (allOk) html += '<div class="s">Every visit time is open.</div>';
           else if (allNo) html += '<div class="s">Not available for these dates.</div>';
           else html += '<ul>' + perSlot.map((p) => `<li><b>${PS.esc(p.label)}</b>: ${!p.bad.length ? 'open every day' : p.bad.length === visitDays.length ? 'not available' : 'not on ' + list(p.bad)}</li>`).join('') + '</ul>';
@@ -211,7 +237,7 @@
             ? (b > a ? `Open for all ${nCount} night${nCount > 1 ? 's' : ''}.` : 'Open that night.')
             : bad.length === nights.length ? 'Not available for these dates.'
             : `Booked the night${bad.length > 1 ? 's' : ''} of ${list(bad)}.`;
-          html += `<div class="res ${cls}"><div class="h"><span>${ICON[k]} ${PS.esc(s.label)}</span><span>${cls === 'ok' ? '✓ Open' : cls === 'no' ? '✕' : 'Partly'}</span></div><div class="s">${msg}</div></div>`;
+          html += `<div class="res ${cls}"><div class="h"><span><span class="ico">${ICON[k]}</span>${PS.esc(s.label)}</span><span>${cls === 'ok' ? 'Open' : cls === 'no' ? 'Unavailable' : 'Partly open'}</span></div><div class="s">${msg}</div></div>`;
         }
       }
       html += '</div><button type="button" class="btn-clear" id="clear">Clear dates</button>';
