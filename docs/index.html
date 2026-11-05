@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>空き状況カレンダー</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="paw">🐾</div>
+      <h1 id="title">空き状況</h1>
+      <p id="message"></p>
+    </header>
+
+    <div class="services" id="services"></div>
+
+    <div class="card">
+      <div class="tabs" id="tabs"></div>
+      <div class="month-nav">
+        <button type="button" id="prev" aria-label="前の月">‹</button>
+        <h2 id="monthLabel"></h2>
+        <button type="button" id="next" aria-label="次の月">›</button>
+      </div>
+      <div id="calendar"></div>
+      <div class="legend">
+        <span><b class="m-ok">○</b>空きあり</span>
+        <span><b class="m-few">△</b>残りわずか／一部の時間帯のみ</span>
+        <span><b class="m-full">×</b>満席</span>
+        <span>休＝お休み</span>
+      </div>
+    </div>
+
+    <div class="card" id="detail"><p class="hint">日付をタップすると詳しい空き状況が見られます。</p></div>
+
+    <a class="contact" id="contact" hidden></a>
+    <p class="footer-note" id="updated"></p>
+  </div>
+
+  <script src="common.js"></script>
+  <script>
+  (async function () {
+    let data;
+    try {
+      const res = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
+      data = PS.normalize(await res.json());
+    } catch (e) {
+      data = PS.normalize(null);
+    }
+    const st = data.settings;
+    document.title = st.businessName || document.title;
+    document.getElementById('title').textContent = st.businessName;
+    document.getElementById('message').textContent = st.message || '';
+
+    const services = PS.enabledServices(data);
+    document.getElementById('services').innerHTML = services
+      .map((k) => `<div class="service"><b>${PS.esc(st.services[k].label)}</b><span>${PS.esc(st.services[k].note || '')}</span></div>`)
+      .join('');
+
+    if (st.contactUrl) {
+      const a = document.getElementById('contact');
+      a.href = st.contactUrl;
+      a.textContent = st.contactLabel || 'お問い合わせ・ご予約';
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.hidden = false;
+    }
+    if (data.updatedAt) {
+      const u = new Date(data.updatedAt);
+      document.getElementById('updated').textContent =
+        `最終更新：${u.getMonth() + 1}/${u.getDate()} ${PS.pad(u.getHours())}:${PS.pad(u.getMinutes())}　※ご予約確定は直接のやりとりで行います`;
+    }
+
+    const now = new Date();
+    const minIdx = now.getFullYear() * 12 + now.getMonth();
+    const maxIdx = minIdx + Math.max(0, (Number(st.monthsAhead) || 3) - 1);
+    const state = { idx: minIdx, filter: services.length > 1 ? 'all' : services[0], selected: null };
+
+    const tabs = document.getElementById('tabs');
+    const tabDefs = (services.length > 1 ? [['all', 'すべて']] : []).concat(services.map((k) => [k, st.services[k].label]));
+    if (tabDefs.length > 1) {
+      tabs.innerHTML = tabDefs.map(([k, l]) => `<button type="button" data-k="${k}">${PS.esc(l)}</button>`).join('');
+      tabs.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { state.filter = b.dataset.k; draw(); }));
+    } else {
+      tabs.hidden = true;
+    }
+
+    function draw() {
+      const y = Math.floor(state.idx / 12), m = state.idx % 12;
+      document.getElementById('monthLabel').textContent = `${y}年 ${m + 1}月`;
+      document.getElementById('prev').disabled = state.idx <= minIdx;
+      document.getElementById('next').disabled = state.idx >= maxIdx;
+      tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.k === state.filter));
+      PS.renderCalendar(document.getElementById('calendar'), data, {
+        year: y, month: m, filter: state.filter, selected: state.selected,
+        onSelect: (d) => { state.selected = d; draw(); PS.renderDetail(document.getElementById('detail'), data, d); },
+      });
+    }
+    document.getElementById('prev').addEventListener('click', () => { state.idx--; draw(); });
+    document.getElementById('next').addEventListener('click', () => { state.idx++; draw(); });
+    draw();
+  })();
+  </script>
+</body>
+</html>

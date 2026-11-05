@@ -1,0 +1,25 @@
+{
+  "settings": {
+    "businessName": "ペットシッター 空き状況",
+    "message": "ご予約・ご相談はお気軽にご連絡ください。",
+    "contactLabel": "",
+    "contactUrl": "",
+    "showCounts": true,
+    "monthsAhead": 3,
+    "exclusiveNight": true,
+    "regularHolidays": [],
+    "services": {
+      "stay": { "enabled": true, "label": "お泊まりシッター", "short": "泊", "capacity": 1, "note": "ご自宅に泊まってお世話します" },
+      "boarding": { "enabled": true, "label": "お預かり", "short": "預", "capacity": 2, "note": "シッター宅でお預かりします" },
+      "visit": { "enabled": true, "label": "訪問シッター", "short": "訪", "note": "1日1〜2回ご自宅へ伺います" }
+    },
+    "visitSlots": [
+      { "id": "morning", "label": "朝", "time": "7:00〜10:00", "capacity": 3 },
+      { "id": "noon", "label": "昼", "time": "11:00〜15:00", "capacity": 2 },
+      { "id": "evening", "label": "夕", "time": "16:00〜20:00", "capacity": 3 }
+    ]
+  },
+  "closed": [],
+  "bookings": [],
+  "updatedAt": null
+}

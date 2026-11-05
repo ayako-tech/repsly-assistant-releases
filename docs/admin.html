@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>空き状況 管理</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .wrap { max-width: 900px; }
+    h1 { font-size: 1.25rem; margin: 0 0 4px; }
+    h2.sec { font-size: 1.05rem; margin: 0 0 10px; }
+    label { display: block; font-size: .85rem; color: var(--muted); margin: 8px 0 3px; }
+    input[type=text], input[type=url], input[type=date], input[type=number], input[type=password], select, textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: #fff; color: var(--text);
+    }
+    textarea { min-height: 60px; }
+    .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+    .check { display: inline-flex; align-items: center; gap: 6px; color: var(--text); margin-right: 14px; font-size: .9rem; }
+    .btn { border: 1px solid var(--line); background: #fff; padding: 8px 14px; border-radius: 10px; font: inherit; cursor: pointer; color: var(--text); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+    .btn.danger { color: #b3413a; }
+    .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .savebar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 10px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+    .savebar .status { font-size: .85rem; color: var(--muted); }
+    .savebar .status.dirty { color: #b3413a; font-weight: 700; }
+    .list { list-style: none; margin: 0; padding: 0; }
+    .list li { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--line); font-size: .9rem; }
+    .list li:first-child { border-top: none; }
+    .list li .btn { flex-shrink: 0; white-space: nowrap; }
+    .list li.editing { background: var(--accent-soft); }
+    .tag { display: inline-block; font-size: .75rem; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-right: 6px; font-weight: 700; }
+    .warn { font-size: .8rem; color: #b3413a; }
+    details summary { cursor: pointer; font-weight: 700; }
+    .slot-row { display: grid; grid-template-columns: 1fr 1.5fr 80px 36px; gap: 6px; margin-bottom: 6px; }
+    .muted { color: var(--muted); font-size: .85rem; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🐾 空き状況 管理ページ</h1>
+  <p class="muted">予定を入れて「公開する」を押すと、お客さん用ページ（<a href="./" target="_blank">こちら</a>）に反映されます（反映まで1〜2分）。</p>
+
+  <div class="savebar">
+    <button class="btn primary" id="publish">公開する（GitHubに保存）</button>
+    <button class="btn" id="download">データをダウンロード</button>
+    <label class="btn" style="margin:0;color:var(--text)">データを読み込む<input type="file" id="upload" accept=".json,application/json" hidden></label>
+    <span class="status" id="status"></span>
+  </div>
+
+  <!-- 予定 -->
+  <div class="card">
+    <h2 class="sec">予定・予約を入れる</h2>
+    <p class="muted">カレンダーの日付をタップすると開始日に入ります。</p>
+    <div class="row">
+      <div>
+        <label>種類</label>
+        <select id="bType">
+          <option value="stay">お泊まりシッター</option>
+          <option value="boarding">お預かり</option>
+          <option value="visit">訪問シッター</option>
+        </select>
+      </div>
+      <div><label>開始日</label><input type="date" id="bStart"></div>
+      <div><label id="bEndLabel">終了日</label><input type="date" id="bEnd"></div>
+      <div><label id="bCountLabel">使う枠の数</label><input type="number" id="bCount" min="1" value="1"></div>
+    </div>
+    <div id="bSlotsWrap">
+      <label>訪問する時間帯</label>
+      <div id="bSlots"></div>
+    </div>
+    <label>メモ <span class="warn">※公開データに含まれます。お客さんの名前や住所は書かないでください</span></label>
+    <input type="text" id="bMemo" placeholder="例：猫2匹 / 犬1頭">
+    <p class="muted" id="bHelp"></p>
+    <div class="btns">
+      <button class="btn primary" id="bSave">追加</button>
+      <button class="btn" id="bCancel" hidden>編集をやめる</button>
+      <button class="btn danger" id="bDelete" hidden>この予定を削除</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="month-nav">
+      <button type="button" id="prev">‹</button>
+      <h2 id="monthLabel"></h2>
+      <button type="button" id="next">›</button>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div id="calendar"></div>
+    <div id="detail" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2 class="sec">予定一覧</h2>
+    <label class="check"><input type="checkbox" id="showPast"> 終わった予定も表示</label>
+    <ul class="list" id="bookingList"></ul>
+  </div>
+
+  <!-- 休み -->
+  <div class="card">
+    <h2 class="sec">お休み</h2>
+    <div class="row">
+      <div><label>開始日</label><input type="date" id="cStart"></div>
+      <div><label>終了日（1日だけなら空欄）</label><input type="date" id="cEnd"></div>
+      <div><label>表示する理由</label><input type="text" id="cNote" placeholder="お休み"></div>
+    </div>
+    <div class="btns"><button class="btn primary" id="cAdd">お休みを追加</button></div>
+    <ul class="list" id="closedList" style="margin-top:10px"></ul>
+    <label style="margin-top:14px">定休日（毎週）</label>
+    <div id="holidays"></div>
+  </div>
+
+  <!-- 設定 -->
+  <div class="card">
+    <details>
+      <summary>基本設定（屋号・枠数・時間帯など）</summary>
+      <label>ページのタイトル（屋号）</label><input type="text" id="sName">
+      <label>お客さんへのメッセージ</label><textarea id="sMessage"></textarea>
+      <div class="row">
+        <div><label>問い合わせボタンの文字</label><input type="text" id="sContactLabel" placeholder="LINEで問い合わせ"></div>
+        <div><label>問い合わせ先URL（LINE・メール・フォームなど）</label><input type="url" id="sContactUrl" placeholder="https://lin.ee/... または mailto:..."></div>
+      </div>
+      <div class="row">
+        <div><label>何ヶ月先まで見せるか</label><input type="number" id="sMonths" min="1" max="12"></div>
+      </div>
+      <div style="margin-top:10px">
+        <label class="check"><input type="checkbox" id="sShowCounts"> 残りの枠数をお客さんに見せる</label><br>
+        <label class="check"><input type="checkbox" id="sExclusive"> お泊まりとお預かりは同じ夜に受けない（どちらかが入ったら、もう一方は×）</label>
+      </div>
+
+      <h3 style="font-size:.95rem;margin:16px 0 4px">サービス</h3>
+      <div id="svcSettings"></div>
+
+      <h3 style="font-size:.95rem;margin:16px 0 4px">訪問の時間帯</h3>
+      <p class="muted">名前・時間・その時間帯に回れる件数</p>
+      <div id="slotSettings"></div>
+      <button class="btn" id="addSlot">時間帯を追加</button>
+    </details>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>GitHub保存の設定（最初に1回だけ）</summary>
+      <p class="muted">「公開する」ボタンでGitHubに直接保存するための設定です。この情報はこの端末のブラウザの中だけに保存されます。</p>
+      <div class="row">
+        <div><label>オーナー（ユーザー名）</label><input type="text" id="ghOwner"></div>
+        <div><label>リポジトリ名</label><input type="text" id="ghRepo"></div>
+        <div><label>ブランチ</label><input type="text" id="ghBranch" placeholder="main"></div>
+        <div><label>ファイルのパス</label><input type="text" id="ghPath" placeholder="docs/data.json"></div>
+      </div>
+      <label>アクセストークン（Fine-grained token、Contents: Read and write）</label>
+      <input type="password" id="ghToken" autocomplete="off">
+      <div class="btns">
+        <button class="btn primary" id="ghSave">設定を保存</button>
+        <button class="btn" id="ghLoad">GitHubから最新データを読み込む</button>
+        <button class="btn danger" id="ghClear">この端末から設定を消す</button>
+      </div>
+    </details>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const LS_GH = 'ps_github_config';
+  const LS_DRAFT = 'ps_draft';
+  let data = PS.normalize(null);
+  let dirty = false;
+  let editingId = null;
+  const now = new Date();
+  const state = { idx: now.getFullYear() * 12 + now.getMonth(), filter: 'all', selected: null };
+
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+    del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+  };
+
+  function setStatus(msg, isDirty) {
+    const el = $('status');
+    el.textContent = msg;
+    el.classList.toggle('dirty', !!isDirty);
+  }
+  function markDirty() {
+    dirty = true;
+    store.set(LS_DRAFT, data);
+    setStatus('● 未公開の変更があります', true);
+    renderAll();
+  }
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+  /* ---------- GitHub ---------- */
+  function ghConf() { return store.get(LS_GH) || {}; }
+  function ghUrl(c) {
+    return `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${c.path.split('/').map(encodeURIComponent).join('/')}`;
+  }
+  function b64encode(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    bytes.forEach((b) => (bin += String.fromCharCode(b)));
+    return btoa(bin);
+  }
+  function b64decode(b64) {
+    const bin = atob(b64.replace(/\s/g, ''));
+    return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+  }
+  function ghReady(c) { return c.owner && c.repo && c.path && c.token; }
+  async function ghGet(c) {
+    const res = await fetch(`${ghUrl(c)}?ref=${encodeURIComponent(c.branch || 'main')}&t=${Date.now()}`, {
+      headers: { Authorization: `Bearer ${c.token}`, Accept: 'application/vnd.github+json' }, cache: 'no-store',
+    });
+    if (res.status === 404) return { sha: null, json: null };
+    if (!res.ok) throw new Error(`読み込み失敗 (${res.status})`);
+    const j = await res.json();
+    return { sha: j.sha, json: JSON.parse(b64decode(j.content)) };
+  }
+  async function ghPut(c, obj) {
+    const cur = await ghGet(c);
+    const body = {
+      message: `空き状況を更新 ${new Date().toLocaleString('ja-JP')}`,
+      content: b64encode(JSON.stringify(obj, null, 2) + '\n'),
+      branch: c.branch || 'main',
+    };
+    if (cur.sha) body.sha = cur.sha;
+    const res = await fetch(ghUrl(c), {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${c.token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(`保存失敗 (${res.status}) ${t.slice(0, 120)}`);
+    }
+  }
+
+  $('publish').addEventListener('click', async () => {
+    const c = ghConf();
+    if (!ghReady(c)) {
+      alert('先に下の「GitHub保存の設定」を入力してください。\n（設定しない場合は「データをダウンロード」して data.json を差し替えてください）');
+      return;
+    }
+    $('publish').disabled = true;
+    setStatus('保存中…');
+    try {
+      data.updatedAt = new Date().toISOString();
+      await ghPut(c, data);
+      dirty = false;
+      store.del(LS_DRAFT);
+      setStatus('✓ 公開しました（ページへの反映まで1〜2分）');
+    } catch (e) {
+      setStatus('✕ ' + e.message, true);
+    } finally {
+      $('publish').disabled = false;
+    }
+  });
+
+  $('download').addEventListener('click', () => {
+    data.updatedAt = new Date().toISOString();
+    const blob = new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'data.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  $('upload').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      data = PS.normalize(JSON.parse(await f.text()));
+      markDirty();
+      fillSettings();
+    } catch (err) { alert('読み込めませんでした: ' + err.message); }
+    e.target.value = '';
+  });
+
+  function fillGh() {
+    const c = ghConf();
+    $('ghOwner').value = c.owner || '';
+    $('ghRepo').value = c.repo || '';
+    $('ghBranch').value = c.branch || '';
+    $('ghPath').value = c.path || '';
+    $('ghToken').value = c.token || '';
+  }
+  $('ghSave').addEventListener('click', () => {
+    store.set(LS_GH, {
+      owner: $('ghOwner').value.trim(), repo: $('ghRepo').value.trim(),
+      branch: $('ghBranch').value.trim() || 'main', path: $('ghPath').value.trim() || 'docs/data.json',
+      token: $('ghToken').value.trim(),
+    });
+    fillGh();
+    setStatus('GitHub設定を保存しました');
+  });
+  $('ghClear').addEventListener('click', () => { store.del(LS_GH); fillGh(); setStatus('設定を消しました'); });
+  $('ghLoad').addEventListener('click', async () => {
+    const c = ghConf();
+    if (!ghReady(c)) return alert('先に設定を保存してください');
+    if (dirty && !confirm('未公開の変更は消えます。読み込みますか？')) return;
+    try {
+      const r = await ghGet(c);
+      data = PS.normalize(r.json);
+      dirty = false; store.del(LS_DRAFT);
+      fillSettings(); renderAll();
+      setStatus('GitHubから読み込みました');
+    } catch (e) { setStatus('✕ ' + e.message, true); }
+  });
+
+  /* ---------- 予定フォーム ---------- */
+  function updateFormMode() {
+    const t = $('bType').value;
+    const isVisit = t === 'visit';
+    $('bSlotsWrap').hidden = !isVisit;
+    $('bEndLabel').textContent = isVisit ? '最終日（1日だけなら空欄）' : '終了日（お迎え・チェックアウトの日）';
+    $('bCountLabel').textContent = isVisit ? '件数（同じ時間帯に何件分）' : t === 'boarding' ? '預かる組数（枠の数）' : '使う枠の数';
+    $('bHelp').textContent = isVisit
+      ? '例：11/10〜11/14 朝と夕 → その5日間の朝・夕の枠が1件ずつ埋まります。'
+      : '例：11/10〜11/12 → 10日と11日の夜が埋まります（12日の夜は空きになります）。';
+    $('bSlots').innerHTML = data.settings.visitSlots
+      .map((s) => `<label class="check"><input type="checkbox" value="${PS.esc(s.id)}"> ${PS.esc(s.label)} <span class="muted">${PS.esc(s.time || '')}</span></label>`)
+      .join('');
+  }
+  function setSlotChecks(ids) {
+    $('bSlots').querySelectorAll('input').forEach((i) => (i.checked = ids.includes(i.value)));
+  }
+  $('bType').addEventListener('change', () => {
+    const keep = [...$('bSlots').querySelectorAll('input:checked')].map((i) => i.value);
+    updateFormMode(); setSlotChecks(keep);
+  });
+
+  function resetForm() {
+    editingId = null;
+    $('bSave').textContent = '追加';
+    $('bCancel').hidden = true; $('bDelete').hidden = true;
+    $('bEnd').value = ''; $('bCount').value = 1; $('bMemo').value = '';
+    setSlotChecks([]);
+    renderBookings();
+  }
+  $('bCancel').addEventListener('click', resetForm);
+
+  $('bSave').addEventListener('click', () => {
+    const type = $('bType').value;
+    const start = $('bStart').value;
+    let end = $('bEnd').value;
+    if (!start) return alert('開始日を入れてください');
+    if (type === 'visit') {
+      if (end && end < start) return alert('最終日が開始日より前になっています');
+    } else {
+      if (!end) end = PS.addDays(start, 1);
+      if (end <= start) return alert('終了日は開始日の翌日以降にしてください');
+    }
+    const slots = [...$('bSlots').querySelectorAll('input:checked')].map((i) => i.value);
+    if (type === 'visit' && slots.length === 0) return alert('訪問する時間帯を選んでください');
+    const b = { id: editingId || uid(), type, start, end: end || start, count: Math.max(1, Number($('bCount').value) || 1), memo: $('bMemo').value.trim() };
+    if (type === 'visit') b.slots = slots;
+
+    // 枠オーバーの確認
+    const over = checkOver(b);
+    if (over.length && !confirm(`次の日は枠を超えます：\n${over.join('\n')}\nそれでも登録しますか？`)) return;
+
+    if (editingId) data.bookings = data.bookings.map((x) => (x.id === editingId ? b : x));
+    else data.bookings.push(b);
+    resetForm();
+    markDirty();
+  });
+  $('bDelete').addEventListener('click', () => {
+    if (!editingId || !confirm('この予定を削除しますか？')) return;
+    data.bookings = data.bookings.filter((x) => x.id !== editingId);
+    resetForm();
+    markDirty();
+  });
+
+  function checkOver(b) {
+    const trial = PS.clone(data);
+    trial.bookings = trial.bookings.filter((x) => x.id !== b.id).concat([b]);
+    const out = [];
+    const last = b.type === 'visit' ? b.end : PS.addDays(b.end, -1);
+    for (let d = b.start; d <= last; d = PS.addDays(d, 1)) {
+      const u = PS.usage(trial, d);
+      const sv = trial.settings.services;
+      if (b.type === 'stay' && u.stay > sv.stay.capacity) out.push(`${PS.fmtDate(d)} お泊まり`);
+      if (b.type === 'boarding' && u.boarding > sv.boarding.capacity) out.push(`${PS.fmtDate(d)} お預かり`);
+      if (trial.settings.exclusiveNight && b.type !== 'visit' && u.stay > 0 && u.boarding > 0) out.push(`${PS.fmtDate(d)} お泊まりとお預かりが重複`);
+      if (b.type === 'visit') {
+        for (const s of trial.settings.visitSlots) {
+          if (b.slots.includes(s.id) && (u.visit[s.id] || 0) > s.capacity) out.push(`${PS.fmtDate(d)} 訪問（${s.label}）`);
+        }
+      }
+      if (out.length > 8) break;
+    }
+    return out;
+  }
+
+  function editBooking(id) {
+    const b = data.bookings.find((x) => x.id === id);
+    if (!b) return;
+    editingId = id;
+    $('bType').value = b.type; updateFormMode();
+    $('bStart').value = b.start;
+    $('bEnd').value = b.type === 'visit' && b.end === b.start ? '' : b.end;
+    $('bCount').value = b.count || 1;
+    $('bMemo').value = b.memo || '';
+    setSlotChecks(b.slots || []);
+    $('bSave').textContent = '変更を反映';
+    $('bCancel').hidden = false; $('bDelete').hidden = false;
+    renderBookings();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function bookingText(b) {
+    const sv = data.settings.services;
+    const name = sv[b.type] ? sv[b.type].label : b.type;
+    let range;
+    if (b.type === 'visit') {
+      range = b.end && b.end !== b.start ? `${PS.fmtDate(b.start)}〜${PS.fmtDate(b.end)}` : PS.fmtDate(b.start);
+      const labels = (b.slots || []).map((id) => (data.settings.visitSlots.find((s) => s.id === id) || { label: id }).label);
+      range += ` ［${labels.join('・')}］`;
+    } else {
+      const nights = Math.round((PS.parse(b.end) - PS.parse(b.start)) / 86400000);
+      range = `${PS.fmtDate(b.start)}〜${PS.fmtDate(b.end)}（${nights}泊）`;
+    }
+    const cnt = (b.count || 1) > 1 ? ` ×${b.count}` : '';
+    return `<span class="tag">${PS.esc(name)}</span>${range}${cnt}${b.memo ? ` <span class="muted">${PS.esc(b.memo)}</span>` : ''}`;
+  }
+
+  function renderBookings() {
+    const t = PS.today();
+    const showPast = $('showPast').checked;
+    const list = data.bookings
+      .filter((b) => showPast || (b.end || b.start) >= t)
+      .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+    $('bookingList').innerHTML = list.length
+      ? list.map((b) => `<li class="${b.id === editingId ? 'editing' : ''}"><div>${bookingText(b)}</div><button class="btn" data-id="${b.id}">編集</button></li>`).join('')
+      : '<li class="muted">予定はまだありません</li>';
+    $('bookingList').querySelectorAll('button[data-id]').forEach((el) => el.addEventListener('click', () => editBooking(el.dataset.id)));
+  }
+  $('showPast').addEventListener('change', renderBookings);
+
+  /* ---------- 休み ---------- */
+  $('cAdd').addEventListener('click', () => {
+    const start = $('cStart').value;
+    const end = $('cEnd').value || start;
+    if (!start) return alert('開始日を入れてください');
+    if (end < start) return alert('終了日が開始日より前です');
+    data.closed.push({ id: uid(), start, end, note: $('cNote').value.trim() || 'お休み' });
+    $('cStart').value = ''; $('cEnd').value = ''; $('cNote').value = '';
+    markDirty();
+  });
+  function renderClosed() {
+    const t = PS.today();
+    const list = data.closed.filter((c) => (c.end || c.start) >= t).sort((a, b) => (a.start < b.start ? -1 : 1));
+    $('closedList').innerHTML = list.length
+      ? list.map((c, i) => `<li><div>${PS.fmtDate(c.start)}${c.end && c.end !== c.start ? '〜' + PS.fmtDate(c.end) : ''} <span class="muted">${PS.esc(c.note)}</span></div><button class="btn danger" data-i="${data.closed.indexOf(c)}">削除</button></li>`).join('')
+      : '<li class="muted">予定されたお休みはありません</li>';
+    $('closedList').querySelectorAll('button[data-i]').forEach((el) =>
+      el.addEventListener('click', () => { data.closed.splice(Number(el.dataset.i), 1); markDirty(); })
+    );
+    $('holidays').innerHTML = PS.WEEK.map((w, i) =>
+      `<label class="check"><input type="checkbox" value="${i}" ${data.settings.regularHolidays.includes(i) ? 'checked' : ''}> ${w}</label>`).join('');
+    $('holidays').querySelectorAll('input').forEach((el) => el.addEventListener('change', () => {
+      data.settings.regularHolidays = [...$('holidays').querySelectorAll('input:checked')].map((x) => Number(x.value));
+      markDirty();
+    }));
+  }
+
+  /* ---------- 設定 ---------- */
+  function fillSettings() {
+    const s = data.settings;
+    $('sName').value = s.businessName || '';
+    $('sMessage').value = s.message || '';
+    $('sContactLabel').value = s.contactLabel || '';
+    $('sContactUrl').value = s.contactUrl || '';
+    $('sMonths').value = s.monthsAhead || 3;
+    $('sShowCounts').checked = !!s.showCounts;
+    $('sExclusive').checked = !!s.exclusiveNight;
+    $('svcSettings').innerHTML = ['stay', 'boarding', 'visit'].map((k) => {
+      const v = s.services[k];
+      const cap = k === 'visit' ? '' : `<div><label>1晩に受けられる数</label><input type="number" min="0" data-svc="${k}" data-f="capacity" value="${v.capacity}"></div>`;
+      return `<div style="border-top:1px solid var(--line);padding-top:8px;margin-top:8px">
+        <label class="check"><input type="checkbox" data-svc="${k}" data-f="enabled" ${v.enabled ? 'checked' : ''}> 受け付ける</label>
+        <div class="row">
+          <div><label>名前</label><input type="text" data-svc="${k}" data-f="label" value="${PS.esc(v.label)}"></div>
+          <div><label>カレンダー用の1文字</label><input type="text" maxlength="2" data-svc="${k}" data-f="short" value="${PS.esc(v.short)}"></div>
+          ${cap}
+        </div>
+        <label>説明</label><input type="text" data-svc="${k}" data-f="note" value="${PS.esc(v.note || '')}">
+      </div>`;
+    }).join('');
+    $('svcSettings').querySelectorAll('input').forEach((el) => el.addEventListener('change', () => {
+      const v = data.settings.services[el.dataset.svc];
+      const f = el.dataset.f;
+      v[f] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Math.max(0, Number(el.value) || 0) : el.value;
+      markDirty();
+    }));
+    renderSlotSettings();
+  }
+  function renderSlotSettings() {
+    $('slotSettings').innerHTML = data.settings.visitSlots.map((sl, i) => `<div class="slot-row">
+      <input type="text" data-i="${i}" data-f="label" value="${PS.esc(sl.label)}" placeholder="朝">
+      <input type="text" data-i="${i}" data-f="time" value="${PS.esc(sl.time || '')}" placeholder="7:00〜10:00">
+      <input type="number" min="0" data-i="${i}" data-f="capacity" value="${sl.capacity}">
+      <button class="btn danger" data-del="${i}" title="削除">✕</button></div>`).join('');
+    $('slotSettings').querySelectorAll('input').forEach((el) => el.addEventListener('change', () => {
+      const sl = data.settings.visitSlots[Number(el.dataset.i)];
+      sl[el.dataset.f] = el.type === 'number' ? Math.max(0, Number(el.value) || 0) : el.value;
+      updateFormMode(); markDirty();
+    }));
+    $('slotSettings').querySelectorAll('button[data-del]').forEach((el) => el.addEventListener('click', () => {
+      if (!confirm('この時間帯を削除しますか？（この時間帯の予約は数えられなくなります）')) return;
+      data.settings.visitSlots.splice(Number(el.dataset.del), 1);
+      renderSlotSettings(); updateFormMode(); markDirty();
+    }));
+  }
+  $('addSlot').addEventListener('click', () => {
+    data.settings.visitSlots.push({ id: 's' + uid(), label: '新しい時間帯', time: '', capacity: 1 });
+    renderSlotSettings(); updateFormMode(); markDirty();
+  });
+  const bindSetting = (id, key, fn) => $(id).addEventListener('change', () => { data.settings[key] = fn($(id)); markDirty(); });
+  bindSetting('sName', 'businessName', (e) => e.value);
+  bindSetting('sMessage', 'message', (e) => e.value);
+  bindSetting('sContactLabel', 'contactLabel', (e) => e.value);
+  bindSetting('sContactUrl', 'contactUrl', (e) => e.value.trim());
+  bindSetting('sMonths', 'monthsAhead', (e) => Math.min(12, Math.max(1, Number(e.value) || 3)));
+  bindSetting('sShowCounts', 'showCounts', (e) => e.checked);
+  bindSetting('sExclusive', 'exclusiveNight', (e) => e.checked);
+
+  /* ---------- カレンダー ---------- */
+  function renderCal() {
+    const y = Math.floor(state.idx / 12), m = state.idx % 12;
+    $('monthLabel').textContent = `${y}年 ${m + 1}月`;
+    const services = PS.enabledServices(data);
+    if (state.filter !== 'all' && !services.includes(state.filter)) state.filter = 'all';
+    const defs = [['all', 'すべて']].concat(services.map((k) => [k, data.settings.services[k].label]));
+    $('tabs').innerHTML = defs.map(([k, l]) => `<button type="button" data-k="${k}" class="${k === state.filter ? 'active' : ''}">${PS.esc(l)}</button>`).join('');
+    $('tabs').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { state.filter = b.dataset.k; renderCal(); }));
+    PS.renderCalendar($('calendar'), data, {
+      year: y, month: m, filter: state.filter, selected: state.selected,
+      onSelect: (d) => {
+        state.selected = d;
+        if (!editingId) $('bStart').value = d;
+        renderCal();
+      },
+    });
+    if (state.selected) PS.renderDetail($('detail'), data, state.selected);
+    else $('detail').innerHTML = '';
+  }
+  $('prev').addEventListener('click', () => { state.idx--; renderCal(); });
+  $('next').addEventListener('click', () => { state.idx++; renderCal(); });
+
+  function renderAll() { renderCal(); renderBookings(); renderClosed(); }
+
+  window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+  /* ---------- 起動 ---------- */
+  (async function init() {
+    fillGh();
+    const draft = store.get(LS_DRAFT);
+    const c = ghConf();
+    try {
+      if (draft && confirm('前回、公開していない変更が残っています。続きから編集しますか？\n（キャンセルで公開中のデータを読み込みます）')) {
+        data = PS.normalize(draft);
+        dirty = true;
+        setStatus('● 未公開の変更があります', true);
+      } else {
+        store.del(LS_DRAFT);
+        if (ghReady(c)) {
+          data = PS.normalize((await ghGet(c)).json);
+        } else {
+          const res = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
+          data = PS.normalize(await res.json());
+        }
+      }
+    } catch (e) {
+      setStatus('データを読み込めなかったので空の状態で開きました（' + e.message + '）', true);
+    }
+    $('bStart').value = PS.today();
+    fillSettings();
+    updateFormMode();
+    renderAll();
+  })();
+})();
+</script>
+</body>
+</html>
