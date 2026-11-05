@@ -4,7 +4,7 @@
     "message": "ご予約・ご相談はお気軽にご連絡ください。",
     "contactLabel": "",
     "contactUrl": "",
-    "showCounts": true,
+    "showCounts": false,
     "monthsAhead": 3,
     "exclusiveNight": true,
     "regularHolidays": [],
