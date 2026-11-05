@@ -66,6 +66,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--s
 .chip b { display: block; font-family: var(--serif); font-size: 1.35rem; font-weight: 600; line-height: 1.15; }
 .chip span.d { display: block; font-size: .84rem; color: var(--muted); margin-top: 2px; }
 .chip.off { opacity: .38; }
+.rate-note { font-size: .9rem; color: #4a4945; margin: 14px 2px 0; font-style: italic; }
 .chip-hint { font-size: .78rem; color: var(--muted); margin: 8px 2px 0; }
 
 /* Section titles */

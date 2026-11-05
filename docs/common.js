@@ -32,6 +32,7 @@
     settings: {
       businessName: 'ペットシッター 空き状況',
       message: 'ご予約・ご相談はお気軽にご連絡ください。',
+      rateNote: '料金は犬種やリクエスト内容によって変わりますので、お気軽にお問い合わせください。',
       contactLabel: '',
       contactUrl: '',
       // お客さん用ページ（英語）に出す文言
@@ -39,6 +40,7 @@
         businessName: 'Pet Sitting Availability',
         message: 'Feel free to get in touch for bookings or questions.',
         contactLabel: 'Contact me to book',
+        rateNote: "Rates vary depending on your pet's breed and your requests. Feel free to reach out for details.",
       },
       showCounts: true,
       monthsAhead: 3,

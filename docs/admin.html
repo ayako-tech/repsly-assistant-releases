@@ -144,6 +144,7 @@
       <summary>基本設定（屋号・枠数・時間帯など）</summary>
       <label>ページのタイトル（屋号）</label><input type="text" id="sName">
       <label>お客さんへのメッセージ</label><textarea id="sMessage"></textarea>
+      <label>料金についてのひとこと（空欄なら表示しません）</label><input type="text" id="sRateNote">
       <div class="row">
         <div><label>問い合わせボタンの文字</label><input type="text" id="sContactLabel" placeholder="LINEで問い合わせ"></div>
         <div><label>問い合わせ先URL（LINE・メール・フォームなど）</label><input type="url" id="sContactUrl" placeholder="https://lin.ee/... または mailto:..."></div>
@@ -664,6 +665,7 @@
     const f = [
       { name: '屋号', get: () => s.businessName, en: ['en', 'businessName'] },
       { name: 'メッセージ', get: () => s.message, en: ['en', 'message'], long: true },
+      { name: '料金についてのひとこと', get: () => s.rateNote, en: ['en', 'rateNote'] },
       { name: '問い合わせボタン', get: () => s.contactLabel || 'お問い合わせ・ご予約', en: ['en', 'contactLabel'] },
     ];
     for (const k of ['stay', 'boarding', 'visit']) {
@@ -713,6 +715,7 @@
     const s = data.settings;
     $('sName').value = s.businessName || '';
     $('sMessage').value = s.message || '';
+    $('sRateNote').value = s.rateNote || '';
     $('sContactLabel').value = s.contactLabel || '';
     $('sContactUrl').value = s.contactUrl || '';
     $('sHeroImage').value = s.heroImage || '';
@@ -774,6 +777,8 @@
   const bindSetting = (id, key, fn) => $(id).addEventListener('change', () => { data.settings[key] = fn($(id)); markDirty(); });
   bindSetting('sName', 'businessName', (e) => e.value);
   bindSetting('sMessage', 'message', (e) => e.value);
+  bindSetting('sRateNote', 'rateNote', (e) => e.value);
+  $('sRateNote').addEventListener('change', () => { if (!$('sRateNote').value.trim()) { data.settings.en.rateNote = ''; renderEnSettings(); markDirty(); } else autoTranslate([['en', 'rateNote']]); });
   bindSetting('sContactLabel', 'contactLabel', (e) => e.value);
   $('sName').addEventListener('change', () => autoTranslate([['en', 'businessName']]));
   $('sMessage').addEventListener('change', () => autoTranslate([['en', 'message']]));

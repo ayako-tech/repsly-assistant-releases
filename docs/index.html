@@ -23,6 +23,7 @@
     </section>
 
     <div class="chips" id="chips"></div>
+    <p class="rate-note" id="rateNote" hidden></p>
     <p class="chip-hint">Tap a service to show or hide it.</p>
 
     <h2 class="t"><span class="n">01</span>Pick your dates</h2>
@@ -79,6 +80,7 @@
     document.title = en.businessName || 'Availability';
     document.getElementById('title').textContent = en.businessName || 'Pet Sitting';
     document.getElementById('message').textContent = en.message || '';
+    if (en.rateNote) { const r = document.getElementById('rateNote'); r.textContent = en.rateNote; r.hidden = false; }
     // seasonal look (?month=12 to preview a month)
     const q = new URLSearchParams(location.search).get('month');
     const season = PSSEASON.pick(st.season, new Date(), q);

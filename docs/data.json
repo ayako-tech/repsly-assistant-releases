@@ -65,8 +65,10 @@
     "en": {
       "businessName": "Pet Sitting Availability",
       "message": "Feel free to get in touch for bookings or questions.",
-      "contactLabel": "Contact me to book"
-    }
+      "contactLabel": "Contact me to book",
+      "rateNote": "Rates vary depending on your pet's breed and your requests. Feel free to reach out for details."
+    },
+    "rateNote": "料金は犬種やリクエスト内容によって変わりますので、お気軽にお問い合わせください。"
   },
   "closed": [],
   "bookings": [],
