@@ -1,15 +1,15 @@
 :root {
-  --bg: #faf7f2;
+  --bg: #eceeff;
   --card: #ffffff;
-  --text: #2d2a26;
-  --muted: #8a8279;
-  --line: #e8e1d6;
-  --accent: #d9774b;
-  --accent-soft: #fbeee6;
+  --text: #15121f;
+  --muted: #6b6680;
+  --line: #d9d6ea;
+  --accent: #6b4cff;
+  --accent-soft: #e4deff;
   --ok: #2f9e6e;
   --few: #d99a1e;
   --full: #c9c2b8;
-  --closed-bg: #f1ece4;
+  --closed-bg: #e9e7f2;
   --sun: #d0584a;
   --sat: #3d78c4;
   --radius: 14px;

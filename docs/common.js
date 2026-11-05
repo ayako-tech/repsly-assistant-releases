@@ -19,6 +19,12 @@
     const d = parse(s);
     return `${d.getMonth() + 1}/${d.getDate()}(${WEEK[d.getDay()]})`;
   };
+  const WEEK_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MONTH_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fmtDateEn = (s) => {
+    const d = parse(s);
+    return `${WEEK_EN[d.getDay()]}, ${MONTH_EN[d.getMonth()]} ${d.getDate()}`;
+  };
   const esc = (s) =>
     String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -28,19 +34,28 @@
       message: 'ご予約・ご相談はお気軽にご連絡ください。',
       contactLabel: '',
       contactUrl: '',
+      // お客さん用ページ（英語）に出す文言
+      en: {
+        businessName: 'Pet Sitting Availability',
+        message: 'Feel free to get in touch for bookings or questions.',
+        contactLabel: 'Contact me to book',
+      },
       showCounts: true,
       monthsAhead: 3,
       exclusiveNight: true,
       regularHolidays: [],
       services: {
-        stay: { enabled: true, label: 'お泊まりシッター', short: '泊', capacity: 1, note: 'ご自宅に泊まってお世話します' },
-        boarding: { enabled: true, label: 'お預かり', short: '預', capacity: 2, note: 'シッター宅でお預かりします' },
-        visit: { enabled: true, label: '訪問シッター', short: '訪', note: '1日1〜2回ご自宅へ伺います' },
+        stay: { enabled: true, label: 'お泊まりシッター', short: '泊', capacity: 1, note: 'ご自宅に泊まってお世話します',
+          labelEn: 'Overnight Sitting', shortEn: 'Stay', noteEn: 'I stay overnight at your home with your pet.' },
+        boarding: { enabled: true, label: 'お預かり', short: '預', capacity: 2, note: 'シッター宅でお預かりします',
+          labelEn: 'Boarding', shortEn: 'Board', noteEn: 'Your pet stays at my home.' },
+        visit: { enabled: true, label: '訪問シッター', short: '訪', note: '1日1〜2回ご自宅へ伺います',
+          labelEn: 'Drop-in Visits', shortEn: 'Visit', noteEn: 'I visit your home once or twice a day.' },
       },
       visitSlots: [
-        { id: 'morning', label: '朝', time: '7:00〜10:00', capacity: 3 },
-        { id: 'noon', label: '昼', time: '11:00〜15:00', capacity: 2 },
-        { id: 'evening', label: '夕', time: '16:00〜20:00', capacity: 3 },
+        { id: 'morning', label: '朝', labelEn: 'Morning', time: '7:00〜10:00', capacity: 3 },
+        { id: 'noon', label: '昼', labelEn: 'Midday', time: '11:00〜15:00', capacity: 2 },
+        { id: 'evening', label: '夕', labelEn: 'Evening', time: '16:00〜20:00', capacity: 3 },
       ],
     },
     closed: [],
@@ -60,6 +75,7 @@
     if (!raw || typeof raw !== 'object') return d;
     const s = raw.settings || {};
     Object.assign(d.settings, s);
+    d.settings.en = Object.assign(clone(DEFAULT_DATA.settings.en), s.en || {});
     d.settings.services = clone(DEFAULT_DATA.settings.services);
     for (const k of Object.keys(d.settings.services)) {
       Object.assign(d.settings.services[k], (s.services || {})[k] || {});
@@ -163,6 +179,31 @@
     return 'ok';
   }
   const SYMBOL = { ok: '○', few: '△', full: '×', na: '－' };
+  const SYMBOL_EN = { ok: '✓', few: '◐', full: '✕', na: '–' };
+
+  // 表示用テキスト（lang: 'ja' | 'en'）
+  const TEXT = {
+    ja: { week: WEEK, fmt: fmtDate, sym: SYMBOL, off: '休',
+      label: { ok: '空きあり', few: '残りわずか', full: '満席', na: 'この日は受付していません' },
+      closed: (note) => `${note}のため受付していません`, night: 'この日の夜',
+      left: (n) => `残${n}`, leftSlots: (n) => `（残り${n}枠）` },
+    en: { week: WEEK_EN, fmt: fmtDateEn, sym: SYMBOL_EN, off: 'Off',
+      label: { ok: 'Available', few: 'Limited', full: 'Booked', na: 'Not offered this day' },
+      closed: () => 'Not available on this day', night: 'night of this date',
+      left: (n) => `${n} left`, leftSlots: (n) => ` (${n} spots left)` },
+  };
+  function svcText(data, k, lang) {
+    const v = data.settings.services[k];
+    if (lang === 'en') return { label: v.labelEn || v.label, short: v.shortEn || v.short, note: v.noteEn || '' };
+    return { label: v.label, short: v.short, note: v.note || '' };
+  }
+  function slotText(slot, lang) {
+    if (lang === 'en') {
+      const guess = { 朝: 'Morning', 午前: 'Morning', 昼: 'Midday', お昼: 'Midday', 午後: 'Afternoon', 夕: 'Evening', 夕方: 'Evening', 夜: 'Night' }[slot.label];
+      return { label: slot.labelEn || guess || slot.label, time: String(slot.time || '').replace(/〜|～/g, '–') };
+    }
+    return { label: slot.label, time: slot.time || '' };
+  }
 
   function serviceMark(ds, key) {
     if (ds.past) return 'past';
@@ -178,7 +219,8 @@
   /* ---------- 描画 ---------- */
 
   function renderCalendar(el, data, opts) {
-    const { year, month, filter = 'all', selected, onSelect } = opts;
+    const { year, month, filter = 'all', selected, onSelect, lang = 'ja' } = opts;
+    const T = TEXT[lang];
     const first = new Date(year, month, 1);
     const startOffset = first.getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -186,7 +228,7 @@
     const t = today();
 
     let html = '<div class="cal-grid" role="grid">';
-    WEEK.forEach((w, i) => {
+    T.week.forEach((w, i) => {
       html += `<div class="cal-head ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}" role="columnheader">${w}</div>`;
     });
     for (let i = 0; i < startOffset; i++) html += '<div class="cal-cell empty"></div>';
@@ -203,15 +245,15 @@
       if (ds.past) {
         body = '';
       } else if (ds.closed) {
-        body = '<span class="closed-label">休</span>';
+        body = `<span class="closed-label">${T.off}</span>`;
       } else if (services.length === 1) {
         const m = serviceMark(ds, services[0]);
-        body = `<span class="big m-${m}">${SYMBOL[m]}</span>`;
+        body = `<span class="big m-${m}">${T.sym[m]}</span>`;
       } else {
         body = services
           .map((k) => {
             const m = serviceMark(ds, k);
-            return `<span class="mini m-${m}"><i>${esc(data.settings.services[k].short)}</i>${SYMBOL[m]}</span>`;
+            return `<span class="mini m-${m}"><i>${esc(svcText(data, k, lang).short)}</i>${T.sym[m]}</span>`;
           })
           .join('');
       }
@@ -227,34 +269,36 @@
     }
   }
 
-  function renderDetail(el, data, date) {
+  function renderDetail(el, data, date, lang = 'ja') {
+    const T = TEXT[lang];
     const ds = dayStatus(data, date);
     const st = data.settings;
     const showCounts = st.showCounts;
-    const label = { ok: '空きあり', few: '残りわずか', full: '満席', na: 'この日は受付していません', closed: 'お休み', past: '—' };
-    let html = `<h3>${fmtDate(date)}</h3>`;
+    const label = T.label;
+    let html = `<h3>${T.fmt(date)}</h3>`;
     if (ds.closed) {
-      html += `<p class="detail-closed">${esc(ds.closedNote)}のため受付していません</p>`;
+      html += `<p class="detail-closed">${esc(T.closed(ds.closedNote))}</p>`;
       el.innerHTML = html;
       return;
     }
     html += '<ul class="detail-list">';
     for (const k of enabledServices(data)) {
-      const sv = st.services[k];
+      const sv = svcText(data, k, lang);
       if (k === 'visit') {
         html += `<li><div class="d-title">${esc(sv.label)}</div><div class="slots">`;
         for (const v of ds.visits) {
           const m = mark(v);
-          const cnt = showCounts && v.remaining > 0 ? `<small>残${v.remaining}</small>` : '';
-          html += `<div class="slot m-${m}"><span>${esc(v.label)}<small>${esc(v.time || '')}</small></span><b>${SYMBOL[m]}</b>${cnt}</div>`;
+          const cnt = showCounts && v.remaining > 0 ? `<small>${T.left(v.remaining)}</small>` : '';
+          const sl = slotText(st.visitSlots.find((x) => x.id === v.id) || v, lang);
+          html += `<div class="slot m-${m}"><span>${esc(sl.label)}<small>${esc(sl.time)}</small></span><b>${T.sym[m]}</b>${cnt}</div>`;
         }
         html += '</div></li>';
       } else {
         const x = ds[k];
         const m = mark(x);
-        const cnt = showCounts && x.remaining > 0 && x.cap > 1 ? `（残り${x.remaining}枠）` : '';
-        html += `<li><div class="d-title">${esc(sv.label)}<small>この日の夜</small></div>
-          <div class="d-val m-${m}"><b>${SYMBOL[m]}</b> ${label[m]}${cnt}</div></li>`;
+        const cnt = showCounts && x.remaining > 0 && x.cap > 1 ? T.leftSlots(x.remaining) : '';
+        html += `<li><div class="d-title">${esc(sv.label)}<small>${T.night}</small></div>
+          <div class="d-val m-${m}"><b>${T.sym[m]}</b> ${label[m]}${cnt}</div></li>`;
       }
     }
     html += '</ul>';
@@ -262,7 +306,7 @@
   }
 
   global.PS = {
-    pad, ymd, parse, addDays, today, fmtDate, esc, WEEK,
+    pad, ymd, parse, addDays, today, fmtDate, fmtDateEn, esc, WEEK, WEEK_EN, MONTH_EN, TEXT, svcText, slotText, SYMBOL_EN,
     DEFAULT_DATA, clone, normalize, dayStatus, usage, ruleInfo, mark, serviceMark,
     enabledServices, renderCalendar, renderDetail, SYMBOL,
   };

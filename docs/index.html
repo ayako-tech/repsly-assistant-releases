@@ -1,48 +1,51 @@
 <!doctype html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>空き状況カレンダー</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Availability</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="client.css">
 </head>
 <body>
   <div class="wrap">
-    <header class="top">
-      <div class="paw">🐾</div>
-      <h1 id="title">空き状況</h1>
+    <section class="hero sticker">
+      <div class="paws" aria-hidden="true">🐾</div>
+      <span class="eyebrow">Live availability</span>
+      <h1 id="title">Pet Sitting</h1>
       <p id="message"></p>
-    </header>
+    </section>
 
-    <div class="services" id="services"></div>
+    <div class="chips" id="chips"></div>
+    <p class="chip-hint">Tap a service to show or hide it.</p>
 
-    <div class="card">
-      <div class="tabs" id="tabs"></div>
-      <div class="month-nav">
-        <button type="button" id="prev" aria-label="前の月">‹</button>
-        <h2 id="monthLabel"></h2>
-        <button type="button" id="next" aria-label="次の月">›</button>
-      </div>
-      <div id="calendar"></div>
+    <h2 class="t"><span class="n">1</span>Pick your dates</h2>
+    <div class="checker sticker" id="checker"></div>
+
+    <h2 class="t"><span class="n">2</span>See what's open</h2>
+    <div class="tl-card sticker">
+      <div class="tl-scroll" id="scroll"><div class="tl" id="tl"></div></div>
       <div class="legend">
-        <span><b class="m-ok">○</b>空きあり</span>
-        <span><b class="m-few">△</b>残りわずか／一部の時間帯のみ</span>
-        <span><b class="m-full">×</b>満席</span>
-        <span><b class="m-na">－</b>受付なし</span>
-        <span>休＝お休み</span>
+        <span><i class="ok"></i>Open</span>
+        <span><i class="few"></i>Last spot</span>
+        <span><i class="full"></i>Booked</span>
+        <span><i class="na"></i>Not offered</span>
+        <span><i class="closed"></i>Day off</span>
       </div>
     </div>
+    <p class="scroll-hint">← Swipe sideways to see later dates. Tap a day to start, tap another to finish.</p>
 
-    <div class="card" id="detail"><p class="hint">日付をタップすると詳しい空き状況が見られます。</p></div>
-
-    <a class="contact" id="contact" hidden></a>
-    <p class="footer-note" id="updated"></p>
+    <p class="foot" id="updated"></p>
   </div>
+  <a class="cta" id="contact" hidden></a>
 
   <script src="common.js"></script>
   <script>
   (async function () {
+    const ICON = { stay: '🏠', boarding: '🧳', visit: '🚪' };
     let data;
     try {
       const res = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
@@ -51,19 +54,15 @@
       data = PS.normalize(null);
     }
     const st = data.settings;
-    document.title = st.businessName || document.title;
-    document.getElementById('title').textContent = st.businessName;
-    document.getElementById('message').textContent = st.message || '';
-
-    const services = PS.enabledServices(data);
-    document.getElementById('services').innerHTML = services
-      .map((k) => `<div class="service"><b>${PS.esc(st.services[k].label)}</b><span>${PS.esc(st.services[k].note || '')}</span></div>`)
-      .join('');
+    const en = st.en;
+    document.title = en.businessName || 'Availability';
+    document.getElementById('title').textContent = en.businessName || 'Pet Sitting';
+    document.getElementById('message').textContent = en.message || '';
 
     if (st.contactUrl) {
       const a = document.getElementById('contact');
       a.href = st.contactUrl;
-      a.textContent = st.contactLabel || 'お問い合わせ・ご予約';
+      a.textContent = (en.contactLabel || 'Contact me to book') + ' →';
       a.target = '_blank';
       a.rel = 'noopener';
       a.hidden = false;
@@ -71,36 +70,162 @@
     if (data.updatedAt) {
       const u = new Date(data.updatedAt);
       document.getElementById('updated').textContent =
-        `最終更新：${u.getMonth() + 1}/${u.getDate()} ${PS.pad(u.getHours())}:${PS.pad(u.getMinutes())}　※ご予約確定は直接のやりとりで行います`;
+        `Updated ${PS.MONTH_EN[u.getMonth()]} ${u.getDate()}, ${PS.pad(u.getHours())}:${PS.pad(u.getMinutes())} · Bookings are confirmed directly with me.`;
     }
 
-    const now = new Date();
-    const minIdx = now.getFullYear() * 12 + now.getMonth();
-    const maxIdx = minIdx + Math.max(0, (Number(st.monthsAhead) || 3) - 1);
-    const state = { idx: minIdx, filter: services.length > 1 ? 'all' : services[0], selected: null };
+    const services = PS.enabledServices(data);
+    const shown = new Set(services);
+    const state = { start: null, end: null };
 
-    const tabs = document.getElementById('tabs');
-    const tabDefs = (services.length > 1 ? [['all', 'すべて']] : []).concat(services.map((k) => [k, st.services[k].label]));
-    if (tabDefs.length > 1) {
-      tabs.innerHTML = tabDefs.map(([k, l]) => `<button type="button" data-k="${k}">${PS.esc(l)}</button>`).join('');
-      tabs.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { state.filter = b.dataset.k; draw(); }));
-    } else {
-      tabs.hidden = true;
+    // date span: today → end of the last month shown
+    const today = PS.today();
+    const t0 = PS.parse(today);
+    const months = Math.max(1, Number(st.monthsAhead) || 3);
+    const last = PS.ymd(new Date(t0.getFullYear(), t0.getMonth() + months, 0));
+    const days = [];
+    for (let d = today; d <= last; d = PS.addDays(d, 1)) days.push(d);
+    const statusCache = new Map(days.map((d) => [d, PS.dayStatus(data, d)]));
+    const ds = (d) => statusCache.get(d) || PS.dayStatus(data, d);
+
+    /* ---------- chips ---------- */
+    const chips = document.getElementById('chips');
+    chips.innerHTML = services.map((k) => {
+      const s = PS.svcText(data, k, 'en');
+      return `<button type="button" class="chip" data-k="${k}"><span class="ico">${ICON[k]}</span><span><b>${PS.esc(s.label)}</b><span class="d">${PS.esc(s.note)}</span></span></button>`;
+    }).join('');
+    chips.querySelectorAll('.chip').forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.k;
+      if (shown.has(k) && shown.size > 1) shown.delete(k); else shown.add(k);
+      chips.querySelectorAll('.chip').forEach((c) => c.classList.toggle('off', !shown.has(c.dataset.k)));
+      draw();
+    }));
+
+    /* ---------- timeline ---------- */
+    function cellFor(m, remaining) {
+      if (m === 'closed') return ['closed', 'OFF'];
+      if (m === 'na') return ['na', '–'];
+      if (m === 'full') return ['full', '✕'];
+      if (m === 'few') return ['few', st.showCounts ? String(remaining) : ''];
+      return ['ok', ''];
+    }
+    function inRange(d) {
+      if (!state.start) return false;
+      const e = state.end || state.start;
+      return d >= state.start && d <= e;
+    }
+    function drawTimeline() {
+      const tl = document.getElementById('tl');
+      tl.style.setProperty('--days', days.length);
+      let h = '<div class="lab"></div>';
+      days.forEach((d, i) => {
+        const x = PS.parse(d);
+        const label = i === 0 || x.getDate() === 1 ? `<span>${PS.MONTH_EN[x.getMonth()]}</span>` : '';
+        h += `<div class="mon">${label}</div>`;
+      });
+      h += '<div class="lab"></div>';
+      days.forEach((d) => {
+        const w = PS.parse(d).getDay();
+        h += `<div class="dw ${w === 0 || w === 6 ? 'we' : ''}" data-d="${d}">${PS.WEEK_EN[w].slice(0, 2)}</div>`;
+      });
+      h += '<div class="lab">Date</div>';
+      days.forEach((d) => {
+        const cls = ['dn'];
+        if (d === today) cls.push('today');
+        if (d === state.start || d === state.end) cls.push('sel');
+        h += `<div class="${cls.join(' ')}" data-d="${d}">${PS.parse(d).getDate()}</div>`;
+      });
+
+      const row = (label, sub, getter) => {
+        h += `<div class="lab ${sub ? 'sub' : ''}">${PS.esc(label)}</div>`;
+        days.forEach((d) => {
+          const [cls, txt] = getter(ds(d));
+          const extra = (inRange(d) ? ' inrange' : '') + (d === state.start || d === state.end ? ' sel' : '');
+          h += `<div class="c ${cls}${extra}" data-d="${d}">${txt}</div>`;
+        });
+      };
+      for (const k of services) {
+        if (!shown.has(k)) continue;
+        const s = PS.svcText(data, k, 'en');
+        if (k === 'visit') {
+          h += `<div class="lab grp">${PS.esc(s.label)}</div><div class="lab grp" style="grid-column: 2 / -1; position: static; border-right: 0"></div>`;
+          st.visitSlots.forEach((slot, i) => {
+            row(PS.slotText(slot, 'en').label, true, (x) => {
+              if (x.closed) return cellFor('closed');
+              const v = x.visits[i];
+              return cellFor(PS.mark(v), v.remaining);
+            });
+          });
+        } else {
+          row(s.label, false, (x) => (x.closed ? cellFor('closed') : cellFor(PS.mark(x[k]), x[k].remaining)));
+        }
+      }
+      tl.innerHTML = h;
+      tl.querySelectorAll('[data-d]').forEach((el) => el.addEventListener('click', () => pick(el.dataset.d)));
+    }
+
+    /* ---------- range checker ---------- */
+    function pick(d) {
+      if (!state.start || state.end) { state.start = d; state.end = null; }
+      else if (d < state.start) { state.start = d; }
+      else { state.end = d; }
+      draw();
+    }
+    function list(ds_) {
+      const shownDates = ds_.slice(0, 4).map((d) => PS.fmtDateEn(d).replace(/^\w+, /, ''));
+      return shownDates.join(', ') + (ds_.length > 4 ? ` +${ds_.length - 4} more` : '');
+    }
+    function drawChecker() {
+      const el = document.getElementById('checker');
+      if (!state.start) {
+        el.innerHTML = '<p class="prompt"><b>Tap your first day</b> on the timeline below, then your last day — we\'ll check everything in between.</p>';
+        return;
+      }
+      const a = state.start, b = state.end || state.start;
+      const nights = [];
+      if (b > a) for (let d = a; d < b; d = PS.addDays(d, 1)) nights.push(d); else nights.push(a);
+      const visitDays = [];
+      for (let d = a; d <= b; d = PS.addDays(d, 1)) visitDays.push(d);
+      const nCount = b > a ? nights.length : 1;
+      let html = `<div class="range">${PS.fmtDateEn(a)}${b > a ? ' → ' + PS.fmtDateEn(b) : ''}<small>${b > a ? `${nCount} night${nCount > 1 ? 's' : ''} · ${visitDays.length} days` : 'one day'}${state.end ? '' : ' · tap a last day'}</small></div>`;
+      html += '<div class="results">';
+      for (const k of services) {
+        if (!shown.has(k)) continue;
+        const s = PS.svcText(data, k, 'en');
+        if (k === 'visit') {
+          const perSlot = st.visitSlots.map((slot, i) => {
+            const bad = visitDays.filter((d) => { const x = ds(d); return x.closed || x.visits[i].remaining <= 0; });
+            return { label: PS.slotText(slot, 'en').label, bad };
+          });
+          const allOk = perSlot.every((p) => !p.bad.length);
+          const allNo = perSlot.every((p) => p.bad.length === visitDays.length);
+          const cls = allOk ? 'ok' : allNo ? 'no' : 'partial';
+          html += `<div class="res ${cls}"><div class="h"><span>${ICON[k]} ${PS.esc(s.label)}</span><span>${allOk ? '✓ Open' : allNo ? '✕' : 'Partly'}</span></div>`;
+          if (allOk) html += '<div class="s">Every visit time is open.</div>';
+          else if (allNo) html += '<div class="s">Not available for these dates.</div>';
+          else html += '<ul>' + perSlot.map((p) => `<li><b>${PS.esc(p.label)}</b>: ${!p.bad.length ? 'open every day' : p.bad.length === visitDays.length ? 'not available' : 'not on ' + list(p.bad)}</li>`).join('') + '</ul>';
+          html += '</div>';
+        } else {
+          const bad = nights.filter((d) => { const x = ds(d); return x.closed || x[k].remaining <= 0; });
+          const cls = !bad.length ? 'ok' : bad.length === nights.length ? 'no' : 'partial';
+          const msg = !bad.length
+            ? (b > a ? `Open for all ${nCount} night${nCount > 1 ? 's' : ''}.` : 'Open that night.')
+            : bad.length === nights.length ? 'Not available for these dates.'
+            : `Booked the night${bad.length > 1 ? 's' : ''} of ${list(bad)}.`;
+          html += `<div class="res ${cls}"><div class="h"><span>${ICON[k]} ${PS.esc(s.label)}</span><span>${cls === 'ok' ? '✓ Open' : cls === 'no' ? '✕' : 'Partly'}</span></div><div class="s">${msg}</div></div>`;
+        }
+      }
+      html += '</div><button type="button" class="btn-clear" id="clear">Clear dates</button>';
+      el.innerHTML = html;
+      document.getElementById('clear').addEventListener('click', () => { state.start = state.end = null; draw(); });
     }
 
     function draw() {
-      const y = Math.floor(state.idx / 12), m = state.idx % 12;
-      document.getElementById('monthLabel').textContent = `${y}年 ${m + 1}月`;
-      document.getElementById('prev').disabled = state.idx <= minIdx;
-      document.getElementById('next').disabled = state.idx >= maxIdx;
-      tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.k === state.filter));
-      PS.renderCalendar(document.getElementById('calendar'), data, {
-        year: y, month: m, filter: state.filter, selected: state.selected,
-        onSelect: (d) => { state.selected = d; draw(); PS.renderDetail(document.getElementById('detail'), data, d); },
-      });
+      const sc = document.getElementById('scroll');
+      const x = sc.scrollLeft;
+      drawTimeline();
+      sc.scrollLeft = x;
+      drawChecker();
     }
-    document.getElementById('prev').addEventListener('click', () => { state.idx--; draw(); });
-    document.getElementById('next').addEventListener('click', () => { state.idx++; draw(); });
     draw();
   })();
   </script>
